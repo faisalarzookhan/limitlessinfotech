@@ -98,19 +98,19 @@ export function getCurrencyData(currencyCode: string): CurrencyData {
 
 export async function updateCurrencyRates(): Promise<void> {
   try {
-    // In a real application, you would fetch from a currency API
-    // For demo purposes, we'll use static rates
-    const response = await fetch("https://api.exchangerate-api.com/v4/latest/USD")
-    const data = await response.json()
+    // Fetch via our own API route to avoid CORS / network restrictions
+    const response = await fetch("/api/currency/latest")
+    if (!response.ok) throw new Error(`Status ${response.status}`)
 
-    if (data.rates) {
-      Object.keys(currencyRates).forEach((code) => {
-        if (data.rates[code]) {
-          currencyRates[code].rate = data.rates[code]
-        }
-      })
-    }
+    const data: { rates: Record<string, number> } = await response.json()
+
+    Object.entries(data.rates).forEach(([code, rate]) => {
+      if (currencyRates[code]) {
+        currencyRates[code].rate = rate
+      }
+    })
   } catch (error) {
-    console.error("Failed to update currency rates:", error)
+    // Don’t explode – just keep the baked-in fallback rates
+    console.warn("Currency-rate update skipped – using fallback rates:", error)
   }
 }

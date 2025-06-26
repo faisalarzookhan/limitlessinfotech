@@ -27,8 +27,8 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 222.2 84% 4.9%; /* Original dark background */
+    --foreground: 210 40% 98%; /* Original dark foreground */
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
@@ -46,6 +46,18 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
+
+    /* New custom dark theme variables */
+    --background: 220 10% 8%; /* Deeper, less saturated dark blue */
+    --foreground: 210 20% 95%; /* Lighter text for contrast */
+    --card: 220 10% 12%; /* Slightly lighter card background */
+    --card-foreground: 210 20% 95%;
+    --border: 220 10% 20%; /* Softer border */
+    --input: 220 10% 15%; /* Input background */
+    --primary: 217 91% 60%; /* Keep original primary blue */
+    --primary-foreground: 210 40% 98%;
+    --accent: 217 91% 60%; /* Use primary for accent */
+    --accent-foreground: 210 40% 98%;
   }
 }
 
@@ -54,7 +66,15 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-poppins; /* Use Poppins for headings */
   }
 }
 
@@ -65,38 +85,39 @@
     transform: translateY(0px);
   }
   50% {
-    transform: translateY(-20px);
+    transform: translateY(-10px); /* Reduced float for subtlety */
   }
 }
 
 .animate-float {
-  animation: float 6s ease-in-out infinite;
+  animation: float 4s ease-in-out infinite; /* Faster, more subtle float */
 }
 
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
   }
   50% {
-    box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
   }
 }
 
 .animate-glow {
-  animation: glow 3s ease-in-out infinite;
+  animation: glow 2s ease-in-out infinite; /* Faster, more subtle glow */
 }
 
 /* Gradient text */
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-cyan-400;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-blue to-accent-cyan;
 }
 
 /* Hero section background */
 .hero-bg {
-  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 1)), url("/images/hero-bg.jpg")
+  background: linear-gradient(to bottom, rgba(10, 13, 20, 0.9), rgba(10, 13, 20, 1)), url("/images/hero-bg.jpg")
     no-repeat center center;
   background-size: cover;
+  background-attachment: fixed; /* Parallax effect */
 }
 
 /* Scrollbar styling */
@@ -105,17 +126,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.1);
+  background: var(--card); /* Match new card background */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.5);
+  background: var(--primary); /* Use primary color for thumb */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.7);
+  background: var(--accent-blue); /* Darker primary on hover */
 }
 
 /* Documentation sidebar */
@@ -128,14 +149,17 @@
 
 /* Service card hover effect */
 .service-card {
-  transition: all 0.3s ease;
+  @apply transition-all duration-300 ease-in-out border border-border bg-card;
 }
 
 .service-card:hover {
-  transform: translateY(-10px);
+  @apply transform -translate-y-2 shadow-lg border-primary;
 }
 
 /* Team member card */
+.team-card {
+  @apply transition-all duration-300 ease-in-out;
+}
 .team-card:hover .team-social {
   opacity: 1;
   transform: translateY(0);
@@ -150,11 +174,13 @@
 /* Project card hover effect */
 .project-card {
   overflow: hidden;
+  @apply rounded-lg shadow-md transition-all duration-300 ease-in-out border border-border bg-card;
 }
 
 .project-card .project-overlay {
   opacity: 0;
   transition: all 0.3s ease;
+  @apply bg-dark-blue-900/80; /* Use new dark blue */
 }
 
 .project-card:hover .project-overlay {
@@ -164,4 +190,27 @@
 .project-card:hover img {
   transform: scale(1.05);
   transition: all 0.5s ease;
+}
+
+/* Custom button styles for gradients */
+.btn-gradient {
+  @apply bg-gradient-to-r from-accent-blue to-accent-cyan text-white hover:from-accent-blue/90 hover:to-accent-cyan/90 transition-all duration-300;
+}
+
+.btn-outline-primary {
+  @apply border border-primary text-primary hover:bg-primary/10 transition-all duration-300;
+}
+
+/* Input and Textarea styles */
+.input-field {
+  @apply w-full px-4 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+}
+
+.textarea-field {
+  @apply w-full px-4 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 resize-y;
+}
+
+/* Card styles */
+.custom-card {
+  @apply bg-card border border-border rounded-lg shadow-md;
 }

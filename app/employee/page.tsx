@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,46 +32,26 @@ import {
   Send,
   Paperclip,
   Shield,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import RealTimeChat from "@/app/components/real-time-chat"
 import ProjectTimeline from "@/app/components/project-timeline"
 import ApprovalWorkflow from "@/app/components/approval-workflow"
+import { useRouter } from "next/navigation"
+import { supabase, DatabaseService, type Task, type Notification } from "@/lib/database" // Import Supabase client and types
 
 interface Employee {
   id: string
-  employeeCode: string
+  employee_code: string
   name: string
   email: string
   department: string
   role: string
-  avatar: string
+  avatar: string // Assuming avatar is a string path or emoji
   status: "online" | "offline" | "busy"
-  lastSeen: string
-}
-
-interface Task {
-  id: string
-  title: string
-  description: string
-  assignedTo: string[]
-  assignedBy: string
-  priority: "low" | "medium" | "high" | "urgent"
-  status: "pending" | "in-progress" | "review" | "completed"
-  dueDate: string
-  createdAt: string
-  tags: string[]
-  attachments: string[]
-  comments: TaskComment[]
-}
-
-interface TaskComment {
-  id: string
-  author: string
-  content: string
-  timestamp: string
-  attachments?: string[]
+  last_seen: string
 }
 
 interface Meeting {
@@ -88,19 +68,9 @@ interface Meeting {
   status: "scheduled" | "ongoing" | "completed" | "cancelled"
 }
 
-interface Notification {
-  id: string
-  type: "task" | "meeting" | "message" | "system"
-  title: string
-  message: string
-  timestamp: string
-  read: boolean
-  actionUrl?: string
-}
-
 interface EmployeeSession {
-  employeeId: string
-  employeeCode: string
+  id: string
+  employee_code: string
   name: string
   email: string
   department: string
@@ -108,154 +78,52 @@ interface EmployeeSession {
   avatar: string
 }
 
+// Mock data for employees (these would ideally come from your DB)
 const mockEmployees: Employee[] = [
   {
     id: "EMP001",
-    employeeCode: "LIS001",
+    employee_code: "LIS001",
     name: "John Doe",
     email: "john@limitless.com",
     department: "Development",
     role: "Senior Developer",
     avatar: "👨‍💻",
     status: "online",
-    lastSeen: "Now",
+    last_seen: "Now",
   },
   {
     id: "EMP002",
-    employeeCode: "LIS002",
+    employee_code: "LIS002",
     name: "Sarah Smith",
     email: "sarah@limitless.com",
     department: "Design",
     role: "UI/UX Designer",
     avatar: "👩‍🎨",
     status: "busy",
-    lastSeen: "5 minutes ago",
+    last_seen: "5 minutes ago",
   },
   {
     id: "EMP003",
-    employeeCode: "LIS003",
+    employee_code: "LIS003",
     name: "Mike Johnson",
     email: "mike@limitless.com",
     department: "Project Management",
     role: "Project Manager",
     avatar: "👨‍💼",
     status: "online",
-    lastSeen: "2 minutes ago",
-  },
-]
-
-const mockTasks: Task[] = [
-  {
-    id: "TASK001",
-    title: "Implement User Authentication",
-    description: "Create secure login system with JWT tokens and password encryption",
-    assignedTo: ["EMP001"],
-    assignedBy: "EMP003",
-    priority: "high",
-    status: "in-progress",
-    dueDate: "2024-01-20",
-    createdAt: "2024-01-15",
-    tags: ["Backend", "Security", "Authentication"],
-    attachments: ["auth-specs.pdf", "wireframes.png"],
-    comments: [
-      {
-        id: "1",
-        author: "John Doe",
-        content: "Started working on the JWT implementation. Should be ready for review by tomorrow.",
-        timestamp: "2024-01-16 14:30",
-      },
-    ],
-  },
-  {
-    id: "TASK002",
-    title: "Design Landing Page",
-    description: "Create modern and responsive landing page design for the new product",
-    assignedTo: ["EMP002"],
-    assignedBy: "EMP003",
-    priority: "medium",
-    status: "review",
-    dueDate: "2024-01-18",
-    createdAt: "2024-01-12",
-    tags: ["Design", "UI/UX", "Frontend"],
-    attachments: ["design-mockups.fig"],
-    comments: [
-      {
-        id: "2",
-        author: "Sarah Smith",
-        content: "Design is ready for review. Added mobile responsiveness and dark mode support.",
-        timestamp: "2024-01-16 11:15",
-      },
-    ],
-  },
-]
-
-const mockMeetings: Meeting[] = [
-  {
-    id: "MEET001",
-    title: "Daily Standup",
-    description: "Daily team sync to discuss progress and blockers",
-    date: "2024-01-16",
-    time: "09:00",
-    duration: "30 minutes",
-    attendees: ["EMP001", "EMP002", "EMP003"],
-    organizer: "EMP003",
-    location: "Conference Room A",
-    type: "meeting",
-    status: "scheduled",
-  },
-  {
-    id: "MEET002",
-    title: "Client Presentation",
-    description: "Present project progress to TechCorp Solutions",
-    date: "2024-01-17",
-    time: "14:00",
-    duration: "1 hour",
-    attendees: ["EMP001", "EMP002", "EMP003"],
-    organizer: "EMP003",
-    location: "Virtual - Zoom",
-    type: "presentation",
-    status: "scheduled",
-  },
-]
-
-const mockNotifications: Notification[] = [
-  {
-    id: "NOTIF001",
-    type: "task",
-    title: "New Task Assigned",
-    message: "You have been assigned to 'Implement User Authentication'",
-    timestamp: "2024-01-16 09:30",
-    read: false,
-    actionUrl: "/employee?tab=tasks",
-  },
-  {
-    id: "NOTIF002",
-    type: "meeting",
-    title: "Meeting Reminder",
-    message: "Daily Standup starts in 15 minutes",
-    timestamp: "2024-01-16 08:45",
-    read: false,
-    actionUrl: "/employee?tab=calendar",
-  },
-  {
-    id: "NOTIF003",
-    type: "message",
-    title: "New Message",
-    message: "Sarah Smith shared a file with you",
-    timestamp: "2024-01-16 08:20",
-    read: true,
+    last_seen: "2 minutes ago",
   },
 ]
 
 export default function EmployeePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [loginForm, setLoginForm] = useState({ employeeCode: "", password: "" })
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [currentEmployee, setCurrentEmployee] = useState<EmployeeSession | null>(null)
   const [activeTab, setActiveTab] = useState("dashboard")
-  const [tasks, setTasks] = useState<Task[]>(mockTasks)
-  const [meetings, setMeetings] = useState<Meeting[]>(mockMeetings)
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees)
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [meetings, setMeetings] = useState<Meeting[]>([]) // Still mock for now
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [employees, setEmployees] = useState<Employee[]>(mockEmployees) // Using mock for now, but could fetch from DB
   const [showNotifications, setShowNotifications] = useState(false)
   const [newTaskForm, setNewTaskForm] = useState({
     title: "",
@@ -267,36 +135,295 @@ export default function EmployeePage() {
   })
   const { toast } = useToast()
   const [showChat, setShowChat] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Demo authentication
-    if (loginForm.employeeCode === "LIS001" && loginForm.password === "limitless2024") {
-      const employeeSession: EmployeeSession = {
-        employeeId: "EMP001",
-        employeeCode: "LIS001",
-        name: "John Doe",
-        email: "john@limitless.com",
-        department: "Development",
-        role: "Senior Developer",
-        avatar: "👨‍💻",
+  const fetchUserData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me")
+      if (res.ok) {
+        const { user } = await res.json()
+        setCurrentEmployee({
+          id: user.id,
+          employee_code: user.employee_code,
+          name: user.name,
+          email: user.email,
+          department: user.department,
+          role: user.role,
+          avatar: user.avatar || "👨‍💼", // Default avatar if not provided
+        })
+        setIsAuthenticated(true)
+      } else {
+        setIsAuthenticated(false)
+        router.push("/") // Redirect to home/login if not authenticated
       }
-      setCurrentEmployee(employeeSession)
-      setIsAuthenticated(true)
+    } catch (error) {
+      console.error("Failed to fetch user data:", error)
+      setIsAuthenticated(false)
+      router.push("/")
+    } finally {
+      setLoading(false)
+    }
+  }, [router])
+
+  const fetchEmployees = useCallback(
+    async (token: string) => {
+      try {
+        const res = await fetch("/api/users", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setEmployees(
+            data.map((user: any) => ({
+              id: user.id,
+              employee_code: user.employee_code,
+              name: user.name,
+              email: user.email,
+              department: user.department,
+              role: user.role,
+              avatar: user.avatar || "👤", // Default avatar
+              status: "online", // Mock status for now
+              last_seen: "Now", // Mock last seen
+            })),
+          )
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to fetch employee list.",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching employees:", error)
+        toast({
+          title: "Error",
+          description: "Network error fetching employees.",
+          variant: "destructive",
+        })
+      }
+    },
+    [toast],
+  )
+
+  const fetchTasks = useCallback(
+    async (token: string) => {
+      try {
+        const data = await DatabaseService.getTasksByAssignedTo(currentEmployee?.id || "")
+        setTasks(data || [])
+      } catch (error) {
+        console.error("Error fetching tasks:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch tasks.",
+          variant: "destructive",
+        })
+      }
+    },
+    [currentEmployee?.id, toast],
+  )
+
+  const fetchNotifications = useCallback(async () => {
+    if (!currentEmployee?.id) return
+    try {
+      const data = await DatabaseService.getNotificationsByUserId(currentEmployee.id)
+      setNotifications(data || [])
+    } catch (error) {
+      console.error("Error fetching notifications:", error)
       toast({
-        title: "Welcome back!",
-        description: "Successfully logged into employee dashboard",
-      })
-    } else {
-      toast({
-        title: "Invalid Credentials",
-        description: "Please check your Employee Code and Password",
+        title: "Error",
+        description: "Failed to load notifications.",
         variant: "destructive",
       })
     }
+  }, [currentEmployee?.id, toast])
+
+  useEffect(() => {
+    fetchUserData()
+  }, [fetchUserData])
+
+  useEffect(() => {
+    if (isAuthenticated && currentEmployee) {
+      // Fetch token from cookie for subsequent API calls
+      const token = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("auth-token="))
+        ?.split("=")[1]
+      if (token) {
+        fetchEmployees(token)
+        fetchTasks(token)
+        fetchNotifications()
+      }
+      // Mock meetings for now
+      setMeetings([
+        {
+          id: "MEET001",
+          title: "Daily Standup",
+          description: "Daily team sync to discuss progress and blockers",
+          date: "2024-01-16",
+          time: "09:00",
+          duration: "30 minutes",
+          attendees: ["EMP001", "EMP002", "EMP003"],
+          organizer: "EMP003",
+          location: "Conference Room A",
+          type: "meeting",
+          status: "scheduled",
+        },
+        {
+          id: "MEET002",
+          title: "Client Presentation",
+          description: "Present project progress to TechCorp Solutions",
+          date: "2024-01-17",
+          time: "14:00",
+          duration: "1 hour",
+          attendees: ["EMP001", "EMP002", "EMP003"],
+          organizer: "EMP003",
+          location: "Virtual - Zoom",
+          type: "presentation",
+          status: "scheduled",
+        },
+      ])
+
+      // Supabase Realtime for Tasks
+      const taskChannel = supabase
+        .channel("public:tasks")
+        .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, (payload) => {
+          const changedTask = payload.new as Task
+          setTasks((prevTasks) => {
+            const existingIndex = prevTasks.findIndex((t) => t.id === changedTask.id)
+            if (existingIndex > -1) {
+              // Update existing task
+              return prevTasks.map((t, i) => (i === existingIndex ? changedTask : t))
+            } else {
+              // Add new task
+              return [changedTask, ...prevTasks]
+            }
+          })
+          toast({
+            title: "Task Update!",
+            description: `Task "${changedTask.title}" was ${payload.eventType}.`,
+          })
+        })
+        .subscribe()
+
+      // Supabase Realtime for Notifications
+      const notificationChannel = supabase
+        .channel(`user_notifications:${currentEmployee.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${currentEmployee.id}` },
+          (payload) => {
+            const changedNotification = payload.new as Notification
+            setNotifications((prevNotifications) => {
+              const existingIndex = prevNotifications.findIndex((n) => n.id === changedNotification.id)
+              if (existingIndex > -1) {
+                // Update existing notification
+                return prevNotifications.map((n, i) => (i === existingIndex ? changedNotification : n))
+              } else {
+                // Add new notification
+                return [changedNotification, ...prevNotifications]
+              }
+            })
+            if (payload.eventType === "INSERT") {
+              toast({
+                title: "New Notification!",
+                description: changedNotification.message,
+              })
+            }
+          },
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(taskChannel)
+        supabase.removeChannel(notificationChannel)
+      }
+    }
+  }, [isAuthenticated, currentEmployee, fetchEmployees, fetchTasks, fetchNotifications, toast])
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(loginForm),
+      })
+
+      if (res.ok) {
+        const { user } = await res.json()
+        setCurrentEmployee({
+          id: user.id,
+          employee_code: user.employee_code,
+          name: user.name,
+          email: user.email,
+          department: user.department,
+          role: user.role,
+          avatar: user.avatar || "👨‍💼",
+        })
+        setIsAuthenticated(true)
+        toast({
+          title: "Welcome back!",
+          description: "Successfully logged into employee dashboard",
+        })
+      } else {
+        const { error } = await res.json()
+        toast({
+          title: "Login Failed",
+          description: error || "Invalid credentials. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+      toast({
+        title: "Error",
+        description: "Network error during login. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const createTask = () => {
+  const handleLogout = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+      })
+      if (res.ok) {
+        setIsAuthenticated(false)
+        setCurrentEmployee(null)
+        toast({
+          title: "Logged Out",
+          description: "You have been successfully logged out.",
+        })
+        router.push("/")
+      } else {
+        toast({
+          title: "Logout Failed",
+          description: "Could not log out. Please try again.",
+        })
+      }
+    } catch (error) {
+      console.error("Logout error:", error)
+      toast({
+        title: "Error",
+        description: "Network error during logout. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createTask = async () => {
     if (!newTaskForm.title.trim() || !newTaskForm.assignedTo.trim()) {
       toast({
         title: "Error",
@@ -306,42 +433,108 @@ export default function EmployeePage() {
       return
     }
 
-    const newTask: Task = {
-      id: `TASK${Date.now()}`,
-      title: newTaskForm.title,
-      description: newTaskForm.description,
-      assignedTo: [newTaskForm.assignedTo],
-      assignedBy: currentEmployee?.employeeId || "",
-      priority: newTaskForm.priority,
-      status: "pending",
-      dueDate: newTaskForm.dueDate,
-      createdAt: new Date().toISOString().split("T")[0],
-      tags: newTaskForm.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-      attachments: [],
-      comments: [],
+    setLoading(true)
+    try {
+      const token = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("auth-token="))
+        ?.split("=")[1]
+      if (!token) {
+        toast({ title: "Error", description: "Authentication token missing.", variant: "destructive" })
+        return
+      }
+
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: newTaskForm.title,
+          description: newTaskForm.description,
+          assignedTo: [newTaskForm.assignedTo],
+          priority: newTaskForm.priority,
+          dueDate: newTaskForm.dueDate,
+          tags: newTaskForm.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+        }),
+      })
+
+      if (res.ok) {
+        // Task will be added via Realtime subscription, no need to manually update state here
+        setNewTaskForm({
+          title: "",
+          description: "",
+          assignedTo: "",
+          priority: "medium",
+          dueDate: "",
+          tags: "",
+        })
+        toast({
+          title: "Task Created",
+          description: "New task has been assigned successfully",
+        })
+
+        // Optionally, create a notification for the assigned user
+        await DatabaseService.createNotification({
+          user_id: newTaskForm.assignedTo,
+          type: "task",
+          title: "New Task Assigned",
+          message: `You have been assigned to task: "${newTaskForm.title}"`,
+          action_url: "/employee?tab=tasks",
+          read: false,
+          timestamp: new Date().toISOString(),
+        })
+      } else {
+        const { error } = await res.json()
+        toast({
+          title: "Error",
+          description: error || "Failed to create task.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error creating task:", error)
+      toast({
+        title: "Error",
+        description: "Network error creating task.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
-
-    setTasks([newTask, ...tasks])
-    setNewTaskForm({
-      title: "",
-      description: "",
-      assignedTo: "",
-      priority: "medium",
-      dueDate: "",
-      tags: "",
-    })
-
-    toast({
-      title: "Task Created",
-      description: "New task has been assigned successfully",
-    })
   }
 
-  const markNotificationAsRead = (notificationId: string) => {
-    setNotifications(notifications.map((notif) => (notif.id === notificationId ? { ...notif, read: true } : notif)))
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      // Optimistic update
+      setNotifications(notifications.map((notif) => (notif.id === notificationId ? { ...notif, read: true } : notif)))
+
+      const updated = await DatabaseService.updateNotification(notificationId, { read: true })
+      if (!updated) {
+        // Revert if update failed
+        setNotifications(
+          notifications.map((notif) => (notif.id === notificationId ? { ...notif, read: false } : notif)),
+        )
+        toast({
+          title: "Error",
+          description: "Failed to mark notification as read.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+      // Revert if network error
+      setNotifications(notifications.map((notif) => (notif.id === notificationId ? { ...notif, read: false } : notif)))
+      toast({
+        title: "Error",
+        description: "Network error marking notification as read.",
+        variant: "destructive",
+      })
+    }
   }
 
   const unreadNotifications = notifications.filter((notif) => !notif.read)
@@ -389,6 +582,15 @@ export default function EmployeePage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-400" />
+        <p className="ml-3 text-lg">Loading Employee Portal...</p>
+      </div>
+    )
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-center">
@@ -411,10 +613,10 @@ export default function EmployeePage() {
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <Input
-                    type="text"
-                    placeholder="Employee Code"
-                    value={loginForm.employeeCode}
-                    onChange={(e) => setLoginForm((prev) => ({ ...prev, employeeCode: e.target.value }))}
+                    type="email"
+                    placeholder="Email"
+                    value={loginForm.email}
+                    onChange={(e) => setLoginForm((prev) => ({ ...prev, email: e.target.value }))}
                     className="bg-white/5 border-white/10 focus:border-blue-500/50"
                     required
                   />
@@ -432,8 +634,9 @@ export default function EmployeePage() {
                 <Button
                   type="submit"
                   className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                  disabled={loading}
                 >
-                  <Users className="w-4 h-4 mr-2" />
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
                   Access Employee Portal
                 </Button>
               </form>
@@ -441,9 +644,9 @@ export default function EmployeePage() {
                 <p className="text-sm text-blue-300">
                   <strong>Demo Credentials:</strong>
                   <br />
-                  Employee Code: LIS001
+                  Email: admin@example.com
                   <br />
-                  Password: limitless2024
+                  Password: secret
                 </p>
               </div>
               <div className="mt-4 text-center">
@@ -520,6 +723,7 @@ export default function EmployeePage() {
                               {notification.type === "meeting" && <Calendar className="w-4 h-4 text-green-400" />}
                               {notification.type === "message" && <MessageSquare className="w-4 h-4 text-purple-400" />}
                               {notification.type === "system" && <AlertCircle className="w-4 h-4 text-orange-400" />}
+                              {notification.type === "approval" && <Shield className="w-4 h-4 text-yellow-400" />}
                             </div>
                             <div className="flex-1">
                               <h4 className="text-sm font-medium">{notification.title}</h4>
@@ -550,17 +754,18 @@ export default function EmployeePage() {
               </div>
               <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
                 <User className="w-3 h-3 mr-1" />
-                {currentEmployee?.employeeCode}
+                {currentEmployee?.employee_code}
               </Badge>
             </div>
 
             <Button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={handleLogout}
               variant="outline"
               size="sm"
               className="border-red-500/50 text-red-300 hover:bg-red-500/10"
+              disabled={loading}
             >
-              Logout
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Logout"}
             </Button>
           </div>
         </div>
@@ -611,11 +816,11 @@ export default function EmployeePage() {
                   <div className="flex items-center justify-between mb-4">
                     <CheckSquare className="w-8 h-8 text-blue-400" />
                     <Badge className="bg-blue-500/20 text-blue-300">
-                      {tasks.filter((task) => task.assignedTo.includes(currentEmployee?.employeeId || "")).length}
+                      {tasks.filter((task) => task.assigned_to.includes(currentEmployee?.id || "")).length}
                     </Badge>
                   </div>
                   <h3 className="text-2xl font-bold mb-1">
-                    {tasks.filter((task) => task.assignedTo.includes(currentEmployee?.employeeId || "")).length}
+                    {tasks.filter((task) => task.assigned_to.includes(currentEmployee?.id || "")).length}
                   </h3>
                   <p className="text-gray-400 text-sm">My Tasks</p>
                 </CardContent>
@@ -668,7 +873,7 @@ export default function EmployeePage() {
                 <CardContent>
                   <div className="space-y-4">
                     {tasks
-                      .filter((task) => task.assignedTo.includes(currentEmployee?.employeeId || ""))
+                      .filter((task) => task.assigned_to.includes(currentEmployee?.id || ""))
                       .slice(0, 3)
                       .map((task) => (
                         <div key={task.id} className="flex items-start space-x-3 p-3 rounded-lg bg-white/5">
@@ -774,8 +979,9 @@ export default function EmployeePage() {
                   <Button
                     onClick={createTask}
                     className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                    disabled={loading}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
                     Create Task
                   </Button>
                 </div>
@@ -824,7 +1030,7 @@ export default function EmployeePage() {
                           </td>
                           <td className="p-4">
                             <div className="flex items-center space-x-2">
-                              {task.assignedTo.map((empId) => {
+                              {task.assigned_to.map((empId) => {
                                 const emp = employees.find((e) => e.id === empId)
                                 return emp ? (
                                   <div key={empId} className="flex items-center space-x-1">
@@ -841,7 +1047,7 @@ export default function EmployeePage() {
                           <td className="p-4">
                             <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
                           </td>
-                          <td className="p-4 text-gray-400">{task.dueDate}</td>
+                          <td className="p-4 text-gray-400">{new Date(task.due_date).toLocaleDateString()}</td>
                           <td className="p-4">
                             <div className="flex items-center space-x-2">
                               <Button size="sm" variant="ghost" className="hover:bg-white/10">
@@ -1008,11 +1214,11 @@ export default function EmployeePage() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Employee Code:</span>
-                          <Badge className="bg-blue-500/20 text-blue-300">{employee.employeeCode}</Badge>
+                          <Badge className="bg-blue-500/20 text-blue-300">{employee.employee_code}</Badge>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Last Seen:</span>
-                          <span className="text-xs">{employee.lastSeen}</span>
+                          <span className="text-xs">{employee.last_seen}</span>
                         </div>
                       </div>
                       <div className="mt-4 flex space-x-2">
@@ -1188,7 +1394,7 @@ export default function EmployeePage() {
         </Tabs>
         {/* Real-time Chat */}
         <RealTimeChat
-          currentUserId={currentEmployee?.employeeId || ""}
+          currentUserId={currentEmployee?.id || ""}
           isMinimized={!showChat}
           onToggleMinimize={() => setShowChat(!showChat)}
         />

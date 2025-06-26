@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,250 +21,155 @@ import {
   Zap,
   Star,
   Flag,
+  Loader2,
 } from "lucide-react"
+import { DatabaseService, type ApprovalRequest, type ApprovalComment } from "@/lib/database"
+import { supabase } from "@/lib/database" // Import supabase client
+import { cn } from "@/lib/utils"
 
-interface ApprovalRequest {
-  id: string
-  title: string
-  description: string
-  type: "design" | "code" | "content" | "deployment" | "feature" | "hotfix"
-  priority: "low" | "medium" | "high" | "critical"
-  status: "pending" | "in-review" | "approved" | "rejected" | "changes-requested"
-  requestedBy: string
-  requestedAt: string
-  assignedTo: string[]
-  dueDate: string
-  projectId: string
-  projectName: string
-  files: string[]
-  changes: string[]
-  approvalSteps: ApprovalStep[]
-  comments: ApprovalComment[]
-  clientVisible: boolean
-}
-
-interface ApprovalStep {
-  id: string
-  stepNumber: number
-  title: string
-  description: string
-  assignedTo: string
-  status: "pending" | "approved" | "rejected" | "skipped"
-  completedAt?: string
-  comments?: string
-  required: boolean
-}
-
-interface ApprovalComment {
-  id: string
-  author: string
-  content: string
-  timestamp: string
-  type: "comment" | "approval" | "rejection" | "change-request"
-  attachments?: string[]
-}
-
-const mockApprovalRequests: ApprovalRequest[] = [
-  {
-    id: "approval1",
-    title: "Homepage Design Updates",
-    description: "Updated homepage design with new branding and improved user experience",
-    type: "design",
-    priority: "high",
-    status: "in-review",
-    requestedBy: "Sarah Smith",
-    requestedAt: "2024-01-16 10:30",
-    assignedTo: ["EMP003", "CLIENT001"],
-    dueDate: "2024-01-18",
-    projectId: "project1",
-    projectName: "TechCorp Website",
-    files: ["homepage-design-v3.fig", "style-guide.pdf"],
-    changes: ["Updated color scheme", "Improved mobile layout", "Added new CTA buttons"],
-    clientVisible: true,
-    approvalSteps: [
-      {
-        id: "step1",
-        stepNumber: 1,
-        title: "Technical Review",
-        description: "Review technical feasibility and implementation requirements",
-        assignedTo: "EMP001",
-        status: "approved",
-        completedAt: "2024-01-16 14:30",
-        comments: "Looks good from technical perspective. Ready for client review.",
-        required: true,
-      },
-      {
-        id: "step2",
-        stepNumber: 2,
-        title: "Project Manager Review",
-        description: "Review project scope and timeline impact",
-        assignedTo: "EMP003",
-        status: "approved",
-        completedAt: "2024-01-16 15:45",
-        comments: "Approved. Timeline remains on track.",
-        required: true,
-      },
-      {
-        id: "step3",
-        stepNumber: 3,
-        title: "Client Approval",
-        description: "Final client approval for design changes",
-        assignedTo: "CLIENT001",
-        status: "pending",
-        required: true,
-      },
-    ],
-    comments: [
-      {
-        id: "comment1",
-        author: "John Doe",
-        content: "The new design looks great! Mobile responsiveness is much improved.",
-        timestamp: "2024-01-16 14:35",
-        type: "comment",
-      },
-      {
-        id: "comment2",
-        author: "Mike Johnson",
-        content: "Approved from project management perspective. Good work team!",
-        timestamp: "2024-01-16 15:50",
-        type: "approval",
-      },
-    ],
-  },
-  {
-    id: "approval2",
-    title: "Security Patch Deployment",
-    description: "Critical security patch for user authentication system",
-    type: "hotfix",
-    priority: "critical",
-    status: "pending",
-    requestedBy: "John Doe",
-    requestedAt: "2024-01-16 16:00",
-    assignedTo: ["EMP003"],
-    dueDate: "2024-01-16 18:00",
-    projectId: "project1",
-    projectName: "TechCorp Website",
-    files: ["security-patch.zip", "deployment-guide.md"],
-    changes: ["Fixed JWT token vulnerability", "Updated password encryption", "Added rate limiting"],
-    clientVisible: false,
-    approvalSteps: [
-      {
-        id: "step1",
-        stepNumber: 1,
-        title: "Security Review",
-        description: "Review security implications and patch effectiveness",
-        assignedTo: "EMP003",
-        status: "pending",
-        required: true,
-      },
-      {
-        id: "step2",
-        stepNumber: 2,
-        title: "Emergency Deployment",
-        description: "Deploy to production immediately after approval",
-        assignedTo: "EMP001",
-        status: "pending",
-        required: true,
-      },
-    ],
-    comments: [],
-  },
-  {
-    id: "approval3",
-    title: "New Feature: User Dashboard",
-    description: "Implementation of new user dashboard with analytics and reporting",
-    type: "feature",
-    priority: "medium",
-    status: "changes-requested",
-    requestedBy: "Sarah Smith",
-    requestedAt: "2024-01-15 09:00",
-    assignedTo: ["EMP003", "CLIENT001"],
-    dueDate: "2024-01-20",
-    projectId: "project1",
-    projectName: "TechCorp Website",
-    files: ["dashboard-mockups.fig", "feature-specs.pdf"],
-    changes: ["Added user analytics", "Created reporting system", "Implemented data visualization"],
-    clientVisible: true,
-    approvalSteps: [
-      {
-        id: "step1",
-        stepNumber: 1,
-        title: "Design Review",
-        description: "Review UI/UX design and user experience",
-        assignedTo: "EMP002",
-        status: "approved",
-        completedAt: "2024-01-15 11:30",
-        comments: "Design looks good. Minor adjustments needed for mobile view.",
-        required: true,
-      },
-      {
-        id: "step2",
-        stepNumber: 2,
-        title: "Technical Review",
-        description: "Review technical implementation and architecture",
-        assignedTo: "EMP001",
-        status: "rejected",
-        completedAt: "2024-01-15 14:20",
-        comments: "Need to optimize database queries for better performance. Please revise.",
-        required: true,
-      },
-    ],
-    comments: [
-      {
-        id: "comment1",
-        author: "John Doe",
-        content: "Database optimization is crucial for this feature. Let's implement caching and query optimization.",
-        timestamp: "2024-01-15 14:25",
-        type: "change-request",
-      },
-    ],
-  },
+// Mock data for users to display names (ideally fetched from DB)
+const mockUsers = [
+  { id: "EMP001", name: "John Doe", avatar: "👨‍💻" },
+  { id: "EMP002", name: "Sarah Smith", avatar: "👩‍🎨" },
+  { id: "EMP003", name: "Mike Johnson", avatar: "👨‍💼" },
+  { id: "CLIENT001", name: "Client A", avatar: "🏢" },
 ]
 
+function getUserName(userId: string) {
+  return mockUsers.find((u) => u.id === userId)?.name || "Unknown User"
+}
+
 export default function ApprovalWorkflow() {
-  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(mockApprovalRequests[0])
-  const [requests, setRequests] = useState<ApprovalRequest[]>(mockApprovalRequests)
+  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null)
+  const [requests, setRequests] = useState<ApprovalRequest[]>([])
   const [newComment, setNewComment] = useState("")
   const [commentType, setCommentType] = useState<"comment" | "approval" | "rejection" | "change-request">("comment")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterPriority, setFilterPriority] = useState("all")
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  const addComment = () => {
+  const fetchApprovalRequests = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await DatabaseService.getApprovalRequests()
+      setRequests(data || [])
+      if (!selectedRequest && data && data.length > 0) {
+        setSelectedRequest(data[0]) // Select the first request by default
+      } else if (selectedRequest) {
+        // If a request was already selected, update its details
+        const updatedSelected = data?.find((req) => req.id === selectedRequest.id)
+        if (updatedSelected) {
+          setSelectedRequest(updatedSelected)
+        } else if (data && data.length > 0) {
+          setSelectedRequest(data[0]) // Fallback to first if selected was deleted
+        } else {
+          setSelectedRequest(null)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching approval requests:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load approval requests.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedRequest, toast])
+
+  useEffect(() => {
+    fetchApprovalRequests()
+
+    const approvalChannel = supabase
+      .channel("public:approval_requests")
+      .on("postgres_changes", { event: "*", schema: "public", table: "approval_requests" }, (payload) => {
+        const changedRequest = payload.new as ApprovalRequest
+        setRequests((prevRequests) => {
+          const existingIndex = prevRequests.findIndex((req) => req.id === changedRequest.id)
+          if (existingIndex > -1) {
+            // Update existing request
+            return prevRequests.map((req, i) => (i === existingIndex ? changedRequest : req))
+          } else {
+            // Add new request
+            return [changedRequest, ...prevRequests]
+          }
+        })
+        // Update selected request if it's the one that changed
+        if (selectedRequest && selectedRequest.id === changedRequest.id) {
+          setSelectedRequest(changedRequest)
+        }
+        toast({
+          title: "Approval Update!",
+          description: `Approval request "${changedRequest.title}" was ${payload.eventType}.`,
+        })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(approvalChannel)
+    }
+  }, [fetchApprovalRequests, selectedRequest, toast])
+
+  const addComment = async () => {
     if (!newComment.trim() || !selectedRequest) return
 
-    const comment: ApprovalComment = {
-      id: Date.now().toString(),
-      author: "Current User",
+    const comment: Partial<ApprovalComment> = {
+      author_id: "EMP003", // Replace with actual current user ID
       content: newComment,
       timestamp: new Date().toISOString(),
       type: commentType,
     }
 
-    const updatedRequest = {
-      ...selectedRequest,
-      comments: [...selectedRequest.comments, comment],
+    try {
+      // Optimistic update
+      const tempCommentId = Date.now().toString()
+      const optimisticComment = { ...comment, id: tempCommentId, author_id: "EMP003" } as ApprovalComment // Assuming EMP003 is current user for demo
+      const updatedComments = [...selectedRequest.comments, optimisticComment]
+      setSelectedRequest({ ...selectedRequest, comments: updatedComments })
+
+      const updatedRequest = await DatabaseService.updateApprovalRequest(selectedRequest.id, {
+        comments: updatedComments,
+      })
+
+      if (updatedRequest) {
+        // Realtime will handle the actual state update, so no need to set here
+        setNewComment("")
+        toast({
+          title: "Comment Added",
+          description: "Your comment has been added to the approval request",
+        })
+      } else {
+        // Revert optimistic update if failed
+        setSelectedRequest({ ...selectedRequest, comments: selectedRequest.comments })
+        toast({
+          title: "Error",
+          description: "Failed to add comment.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error)
+      // Revert optimistic update if failed
+      setSelectedRequest({ ...selectedRequest, comments: selectedRequest.comments })
+      toast({
+        title: "Error",
+        description: "Network error adding comment.",
+        variant: "destructive",
+      })
     }
-
-    setRequests(requests.map((req) => (req.id === selectedRequest.id ? updatedRequest : req)))
-    setSelectedRequest(updatedRequest)
-    setNewComment("")
-
-    toast({
-      title: "Comment Added",
-      description: "Your comment has been added to the approval request",
-    })
   }
 
-  const updateApprovalStep = (stepId: string, status: "approved" | "rejected", comments?: string) => {
+  const updateApprovalStep = async (stepId: string, status: "approved" | "rejected", comments?: string) => {
     if (!selectedRequest) return
 
-    const updatedSteps = selectedRequest.approvalSteps.map((step) =>
+    const updatedSteps = selectedRequest.approval_steps.map((step) =>
       step.id === stepId
         ? {
             ...step,
             status,
-            completedAt: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
             comments: comments || step.comments,
           }
         : step,
@@ -280,84 +185,107 @@ export default function ApprovalWorkflow() {
     let newStatus = selectedRequest.status
     if (allRequiredCompleted) {
       newStatus = hasRejectedStep ? "rejected" : "approved"
+    } else if (status === "approved" || status === "rejected") {
+      newStatus = "in-review" // If a step is acted upon, it's in review
     }
 
-    const updatedRequest = {
-      ...selectedRequest,
-      approvalSteps: updatedSteps,
-      status: newStatus,
+    try {
+      // Optimistic update
+      setSelectedRequest({ ...selectedRequest, approval_steps: updatedSteps, status: newStatus })
+
+      const updatedRequest = await DatabaseService.updateApprovalRequest(selectedRequest.id, {
+        approval_steps: updatedSteps,
+        status: newStatus,
+      })
+
+      if (updatedRequest) {
+        // Realtime will handle the actual state update, so no need to set here
+        toast({
+          title: status === "approved" ? "Step Approved" : "Step Rejected",
+          description: `Approval step has been ${status}`,
+        })
+      } else {
+        // Revert optimistic update if failed
+        setSelectedRequest(selectedRequest) // Revert to original state
+        toast({
+          title: "Error",
+          description: `Failed to ${status} step.`,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error updating approval step:", error)
+      // Revert optimistic update if failed
+      setSelectedRequest(selectedRequest) // Revert to original state
+      toast({
+        title: "Error",
+        description: "Network error updating approval step.",
+        variant: "destructive",
+      })
     }
-
-    setRequests(requests.map((req) => (req.id === selectedRequest.id ? updatedRequest : req)))
-    setSelectedRequest(updatedRequest)
-
-    toast({
-      title: status === "approved" ? "Step Approved" : "Step Rejected",
-      description: `Approval step has been ${status}`,
-    })
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
-        return "bg-green-500/20 text-green-300"
+        return "bg-accent-green/20 text-accent-green"
       case "rejected":
-        return "bg-red-500/20 text-red-300"
+        return "bg-destructive/20 text-destructive"
       case "in-review":
-        return "bg-blue-500/20 text-blue-300"
+        return "bg-primary/20 text-primary"
       case "changes-requested":
-        return "bg-orange-500/20 text-orange-300"
+        return "bg-accent-orange/20 text-accent-orange"
       case "pending":
         return "bg-yellow-500/20 text-yellow-300"
       default:
-        return "bg-gray-500/20 text-gray-300"
+        return "bg-muted/20 text-muted-foreground"
     }
   }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "critical":
-        return "bg-red-500/20 text-red-300"
+        return "bg-destructive/20 text-destructive"
       case "high":
-        return "bg-orange-500/20 text-orange-300"
+        return "bg-accent-orange/20 text-accent-orange"
       case "medium":
         return "bg-yellow-500/20 text-yellow-300"
       case "low":
-        return "bg-green-500/20 text-green-300"
+        return "bg-accent-green/20 text-accent-green"
       default:
-        return "bg-gray-500/20 text-gray-300"
+        return "bg-muted/20 text-muted-foreground"
     }
   }
 
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "design":
-        return <FileText className="w-4 h-4" />
+        return <FileText className="w-4 h-4 text-accent-purple" />
       case "code":
-        return <GitBranch className="w-4 h-4" />
+        return <GitBranch className="w-4 h-4 text-accent-blue" />
       case "deployment":
-        return <Zap className="w-4 h-4" />
+        return <Zap className="w-4 h-4 text-accent-cyan" />
       case "hotfix":
-        return <Shield className="w-4 h-4" />
+        return <Shield className="w-4 h-4 text-destructive" />
       case "feature":
-        return <Star className="w-4 h-4" />
+        return <Star className="w-4 h-4 text-yellow-400" />
       default:
-        return <Flag className="w-4 h-4" />
+        return <Flag className="w-4 h-4 text-muted-foreground" />
     }
   }
 
   const getStepStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
-        return <CheckCircle className="w-5 h-5 text-green-400" />
+        return <CheckCircle className="w-5 h-5 text-accent-green" />
       case "rejected":
-        return <XCircle className="w-5 h-5 text-red-400" />
+        return <XCircle className="w-5 h-5 text-destructive" />
       case "pending":
         return <Clock className="w-5 h-5 text-yellow-400" />
       case "skipped":
-        return <ArrowRight className="w-5 h-5 text-gray-400" />
+        return <ArrowRight className="w-5 h-5 text-muted-foreground" />
       default:
-        return <Clock className="w-5 h-5 text-gray-400" />
+        return <Clock className="w-5 h-5 text-muted-foreground" />
     }
   }
 
@@ -367,59 +295,68 @@ export default function ApprovalWorkflow() {
     return matchesStatus && matchesPriority
   })
 
+  if (loading) {
+    return (
+      <Card className="custom-card p-6 flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="ml-3 text-lg text-muted-foreground">Loading Approvals...</p>
+      </Card>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Approval Workflow Header */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      <Card className="custom-card">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <Shield className="w-5 h-5" />
+            <CardTitle className="flex items-center space-x-2 text-foreground">
+              <Shield className="w-5 h-5 text-primary" />
               <span>Approval Workflow</span>
             </CardTitle>
             <div className="flex items-center space-x-2">
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 bg-white/5 border border-white/10 rounded-md focus:border-blue-500/50 focus:outline-none text-white text-sm"
+                className="input-field text-sm"
               >
-                <option value="all" className="bg-slate-800">
+                <option value="all" className="bg-dark-blue-800">
                   All Status
                 </option>
-                <option value="pending" className="bg-slate-800">
+                <option value="pending" className="bg-dark-blue-800">
                   Pending
                 </option>
-                <option value="in-review" className="bg-slate-800">
+                <option value="in-review" className="bg-dark-blue-800">
                   In Review
                 </option>
-                <option value="approved" className="bg-slate-800">
+                <option value="approved" className="bg-dark-blue-800">
                   Approved
                 </option>
-                <option value="rejected" className="bg-slate-800">
+                <option value="rejected" className="bg-dark-blue-800">
                   Rejected
                 </option>
-                <option value="changes-requested" className="bg-slate-800">
+                <option value="changes-requested" className="bg-dark-blue-800">
                   Changes Requested
                 </option>
               </select>
               <select
                 value={filterPriority}
                 onChange={(e) => setFilterPriority(e.target.value)}
-                className="px-3 py-2 bg-white/5 border border-white/10 rounded-md focus:border-blue-500/50 focus:outline-none text-white text-sm"
+                className="input-field text-sm"
               >
-                <option value="all" className="bg-slate-800">
+                <option value="all" className="bg-dark-blue-800">
                   All Priority
                 </option>
-                <option value="critical" className="bg-slate-800">
+                <option value="critical" className="bg-dark-blue-800">
                   Critical
                 </option>
-                <option value="high" className="bg-slate-800">
+                <option value="high" className="bg-dark-blue-800">
                   High
                 </option>
-                <option value="medium" className="bg-slate-800">
+                <option value="medium" className="bg-dark-blue-800">
                   Medium
                 </option>
-                <option value="low" className="bg-slate-800">
+                <option value="low" className="bg-dark-blue-800">
                   Low
                 </option>
               </select>
@@ -432,25 +369,25 @@ export default function ApprovalWorkflow() {
               <div className="text-2xl font-bold text-yellow-400">
                 {requests.filter((r) => r.status === "pending" || r.status === "in-review").length}
               </div>
-              <div className="text-sm text-gray-400">Pending Approval</div>
+              <div className="text-sm text-muted-foreground">Pending Approval</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">
+              <div className="text-2xl font-bold text-accent-green">
                 {requests.filter((r) => r.status === "approved").length}
               </div>
-              <div className="text-sm text-gray-400">Approved</div>
+              <div className="text-sm text-muted-foreground">Approved</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-400">
+              <div className="text-2xl font-bold text-destructive">
                 {requests.filter((r) => r.status === "rejected").length}
               </div>
-              <div className="text-sm text-gray-400">Rejected</div>
+              <div className="text-sm text-muted-foreground">Rejected</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-400">
+              <div className="text-2xl font-bold text-accent-orange">
                 {requests.filter((r) => r.status === "changes-requested").length}
               </div>
-              <div className="text-sm text-gray-400">Changes Requested</div>
+              <div className="text-sm text-muted-foreground">Changes Requested</div>
             </div>
           </div>
         </CardContent>
@@ -459,83 +396,118 @@ export default function ApprovalWorkflow() {
       <div className="grid lg:grid-cols-12 gap-6">
         {/* Approval Requests List */}
         <div className="lg:col-span-4">
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Approval Requests</CardTitle>
+              <CardTitle className="text-foreground">Approval Requests</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {filteredRequests.map((request) => (
-                <motion.div
-                  key={request.id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedRequest(request)}
-                  className={`p-4 rounded-lg cursor-pointer border transition-all ${
-                    selectedRequest?.id === request.id
-                      ? "bg-blue-500/20 border-blue-500/30"
-                      : "bg-white/5 border-white/10 hover:bg-white/10"
-                  }`}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 mt-1">{getTypeIcon(request.type)}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-sm">{request.title}</h3>
-                        {request.clientVisible && (
-                          <Badge className="bg-purple-500/20 text-purple-300 text-xs">
-                            <Eye className="w-3 h-3 mr-1" />
-                            Client
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2">{request.description}</p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getStatusColor(request.status)} size="sm">
-                            {request.status}
-                          </Badge>
-                          <Badge className={getPriorityColor(request.priority)} size="sm">
-                            {request.priority}
-                          </Badge>
+              {filteredRequests.length === 0 ? (
+                <p className="text-muted-foreground text-center">No approval requests found.</p>
+              ) : (
+                filteredRequests.map((request) => (
+                  <motion.div
+                    key={request.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedRequest(request)}
+                    className={cn(
+                      "p-4 rounded-lg cursor-pointer border transition-all",
+                      selectedRequest?.id === request.id
+                        ? "bg-primary/20 border-primary/30"
+                        : "bg-muted/10 border-border hover:bg-muted/20",
+                    )}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 mt-1">{getTypeIcon(request.type)}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium text-sm text-foreground">{request.title}</h3>
+                          {request.client_visible && (
+                            <Badge className="bg-accent-purple/20 text-accent-purple text-xs">
+                              <Eye className="w-3 h-3 mr-1" />
+                              Client
+                            </Badge>
+                          )}
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {request.approvalSteps.filter((s) => s.status === "approved").length}/
-                          {request.approvalSteps.filter((s) => s.required).length}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-xs text-gray-500">
-                        <span>by {request.requestedBy}</span>
-                        <span className="mx-2">•</span>
-                        <span>{new Date(request.requestedAt).toLocaleDateString()}</span>
+                        <p className="text-xs text-muted-foreground mb-2">{request.description}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Badge
+                              className={cn(
+                                "px-2 py-0.5 rounded-full text-xs font-medium",
+                                getStatusColor(request.status),
+                              )}
+                              size="sm"
+                            >
+                              {request.status}
+                            </Badge>
+                            <Badge
+                              className={cn(
+                                "px-2 py-0.5 rounded-full text-xs font-medium",
+                                getPriorityColor(request.priority),
+                              )}
+                              size="sm"
+                            >
+                              {request.priority}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {request.approval_steps.filter((s) => s.status === "approved").length}/
+                            {request.approval_steps.filter((s) => s.required).length}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          <span>by {getUserName(request.requested_by)}</span>
+                          <span className="mx-2">•</span>
+                          <span>{new Date(request.requested_at).toLocaleDateString()}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Approval Details */}
         <div className="lg:col-span-8">
-          {selectedRequest && (
+          {!selectedRequest ? (
+            <Card className="custom-card p-6 flex items-center justify-center min-h-[300px]">
+              <p className="text-muted-foreground text-center">Select an approval request to view details.</p>
+            </Card>
+          ) : (
             <div className="space-y-6">
               {/* Request Details */}
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+              <Card className="custom-card">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center space-x-2">
+                      <CardTitle className="flex items-center space-x-2 text-foreground">
                         {getTypeIcon(selectedRequest.type)}
                         <span>{selectedRequest.title}</span>
                       </CardTitle>
-                      <p className="text-gray-400 mt-1">{selectedRequest.description}</p>
+                      <p className="text-muted-foreground mt-1">{selectedRequest.description}</p>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Badge className={getStatusColor(selectedRequest.status)}>{selectedRequest.status}</Badge>
-                      <Badge className={getPriorityColor(selectedRequest.priority)}>{selectedRequest.priority}</Badge>
-                      {selectedRequest.clientVisible && (
-                        <Badge className="bg-purple-500/20 text-purple-300">
+                      <Badge
+                        className={cn(
+                          "px-3 py-1 rounded-full text-sm font-medium",
+                          getStatusColor(selectedRequest.status),
+                        )}
+                      >
+                        {selectedRequest.status}
+                      </Badge>
+                      <Badge
+                        className={cn(
+                          "px-3 py-1 rounded-full text-sm font-medium",
+                          getPriorityColor(selectedRequest.priority),
+                        )}
+                      >
+                        {selectedRequest.priority}
+                      </Badge>
+                      {selectedRequest.client_visible && (
+                        <Badge className="bg-accent-purple/20 text-accent-purple">
                           <Eye className="w-3 h-3 mr-1" />
                           Client Visible
                         </Badge>
@@ -546,44 +518,46 @@ export default function ApprovalWorkflow() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="font-medium mb-3">Request Information</h3>
+                      <h3 className="font-medium mb-3 text-foreground">Request Information</h3>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Requested by:</span>
-                          <span>{selectedRequest.requestedBy}</span>
+                          <span className="text-muted-foreground">Requested by:</span>
+                          <span className="text-foreground">{getUserName(selectedRequest.requested_by)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Project:</span>
-                          <span>{selectedRequest.projectName}</span>
+                          <span className="text-muted-foreground">Project ID:</span>
+                          <span className="text-foreground">{selectedRequest.project_id}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Due Date:</span>
-                          <span>{new Date(selectedRequest.dueDate).toLocaleDateString()}</span>
+                          <span className="text-muted-foreground">Due Date:</span>
+                          <span className="text-foreground">
+                            {new Date(selectedRequest.due_date).toLocaleDateString()}
+                          </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Type:</span>
-                          <span className="capitalize">{selectedRequest.type}</span>
+                          <span className="text-muted-foreground">Type:</span>
+                          <span className="capitalize text-foreground">{selectedRequest.type}</span>
                         </div>
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-medium mb-3">Changes</h3>
+                      <h3 className="font-medium mb-3 text-foreground">Assigned To</h3>
                       <ul className="space-y-1 text-sm">
-                        {selectedRequest.changes.map((change, index) => (
-                          <li key={index} className="flex items-center space-x-2">
-                            <CheckCircle className="w-3 h-3 text-green-400" />
-                            <span>{change}</span>
+                        {selectedRequest.assigned_to.map((userId, index) => (
+                          <li key={index} className="flex items-center space-x-2 text-foreground">
+                            <User className="w-3 h-3 text-primary" />
+                            <span>{getUserName(userId)}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   </div>
-                  {selectedRequest.files.length > 0 && (
+                  {selectedRequest.files && selectedRequest.files.length > 0 && (
                     <div className="mt-6">
-                      <h3 className="font-medium mb-3">Attached Files</h3>
+                      <h3 className="font-medium mb-3 text-foreground">Attached Files</h3>
                       <div className="flex flex-wrap gap-2">
                         {selectedRequest.files.map((file) => (
-                          <Badge key={file} className="bg-blue-500/20 text-blue-300">
+                          <Badge key={file} className="bg-primary/20 text-primary">
                             <FileText className="w-3 h-3 mr-1" />
                             {file}
                           </Badge>
@@ -591,53 +565,79 @@ export default function ApprovalWorkflow() {
                       </div>
                     </div>
                   )}
+                  {selectedRequest.changes && selectedRequest.changes.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="font-medium mb-3 text-foreground">Changes</h3>
+                      <ul className="space-y-1 text-sm">
+                        {selectedRequest.changes.map((change, index) => (
+                          <li key={index} className="flex items-center space-x-2 text-foreground">
+                            <CheckCircle className="w-3 h-3 text-accent-green" />
+                            <span>{change}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               {/* Approval Steps */}
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+              <Card className="custom-card">
                 <CardHeader>
-                  <CardTitle>Approval Steps</CardTitle>
+                  <CardTitle className="text-foreground">Approval Steps</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {selectedRequest.approvalSteps.map((step, index) => (
+                    {selectedRequest.approval_steps.map((step, index) => (
                       <motion.div
                         key={step.id}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="flex items-start space-x-4 p-4 rounded-lg bg-white/5 border border-white/10"
+                        className="flex items-start space-x-4 p-4 rounded-lg bg-muted/10 border border-border"
                       >
                         <div className="flex-shrink-0">{getStepStatusIcon(step.status)}</div>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium">
-                              Step {step.stepNumber}: {step.title}
+                            <h3 className="font-medium text-foreground">
+                              Step {step.step_number}: {step.title}
                             </h3>
                             <div className="flex items-center space-x-2">
-                              {step.required && <Badge className="bg-red-500/20 text-red-300 text-xs">Required</Badge>}
-                              <Badge className={getStatusColor(step.status)}>{step.status}</Badge>
+                              {step.required && (
+                                <Badge className="bg-destructive/20 text-destructive text-xs">Required</Badge>
+                              )}
+                              <Badge
+                                className={cn(
+                                  "px-2 py-0.5 rounded-full text-xs font-medium",
+                                  getStatusColor(step.status),
+                                )}
+                              >
+                                {step.status}
+                              </Badge>
                             </div>
                           </div>
-                          <p className="text-sm text-gray-400 mb-2">{step.description}</p>
+                          <p className="text-sm text-muted-foreground mb-2">{step.description}</p>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-500">Assigned to: {step.assignedTo}</span>
-                            {step.completedAt && (
-                              <span className="text-xs text-gray-500">
-                                Completed: {new Date(step.completedAt).toLocaleString()}
+                            <span className="text-sm text-muted-foreground">
+                              Assigned to: {getUserName(step.assigned_to)}
+                            </span>
+                            {step.completed_at && (
+                              <span className="text-xs text-muted-foreground">
+                                Completed: {new Date(step.completed_at).toLocaleString()}
                               </span>
                             )}
                           </div>
                           {step.comments && (
-                            <div className="mt-2 p-2 bg-white/5 rounded text-sm text-gray-300">{step.comments}</div>
+                            <div className="mt-2 p-2 bg-muted/20 rounded text-sm text-muted-foreground">
+                              {step.comments}
+                            </div>
                           )}
                           {step.status === "pending" && (
                             <div className="mt-3 flex items-center space-x-2">
                               <Button
                                 size="sm"
                                 onClick={() => updateApprovalStep(step.id, "approved")}
-                                className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
+                                className="bg-accent-green/20 hover:bg-accent-green/30 border border-accent-green/30 text-accent-green"
                               >
                                 <CheckCircle className="w-4 h-4 mr-1" />
                                 Approve
@@ -645,7 +645,7 @@ export default function ApprovalWorkflow() {
                               <Button
                                 size="sm"
                                 onClick={() => updateApprovalStep(step.id, "rejected")}
-                                className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30"
+                                className="bg-destructive/20 hover:bg-destructive/30 border border-destructive/30 text-destructive"
                               >
                                 <XCircle className="w-4 h-4 mr-1" />
                                 Reject
@@ -660,43 +660,52 @@ export default function ApprovalWorkflow() {
               </Card>
 
               {/* Comments Section */}
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+              <Card className="custom-card">
                 <CardHeader>
-                  <CardTitle>Comments & Discussion</CardTitle>
+                  <CardTitle className="text-foreground">Comments & Discussion</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4 mb-6">
-                    {selectedRequest.comments.map((comment) => (
-                      <motion.div
-                        key={comment.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-3 rounded-lg bg-white/5 border border-white/10"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <User className="w-4 h-4" />
-                            <span className="font-medium text-sm">{comment.author}</span>
-                            <Badge
-                              className={
-                                comment.type === "approval"
-                                  ? "bg-green-500/20 text-green-300"
-                                  : comment.type === "rejection"
-                                    ? "bg-red-500/20 text-red-300"
-                                    : comment.type === "change-request"
-                                      ? "bg-orange-500/20 text-orange-300"
-                                      : "bg-blue-500/20 text-blue-300"
-                              }
-                              size="sm"
-                            >
-                              {comment.type}
-                            </Badge>
+                    {selectedRequest.comments.length === 0 ? (
+                      <p className="text-muted-foreground text-center">No comments yet.</p>
+                    ) : (
+                      selectedRequest.comments.map((comment) => (
+                        <motion.div
+                          key={comment.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-3 rounded-lg bg-muted/10 border border-border"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <User className="w-4 h-4 text-muted-foreground" />
+                              <span className="font-medium text-sm text-foreground">
+                                {getUserName(comment.author_id)}
+                              </span>
+                              <Badge
+                                className={cn(
+                                  "px-2 py-0.5 rounded-full text-xs font-medium",
+                                  comment.type === "approval"
+                                    ? "bg-accent-green/20 text-accent-green"
+                                    : comment.type === "rejection"
+                                      ? "bg-destructive/20 text-destructive"
+                                      : comment.type === "change-request"
+                                        ? "bg-accent-orange/20 text-accent-orange"
+                                        : "bg-primary/20 text-primary",
+                                )}
+                                size="sm"
+                              >
+                                {comment.type}
+                              </Badge>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(comment.timestamp).toLocaleString()}
+                            </span>
                           </div>
-                          <span className="text-xs text-gray-500">{new Date(comment.timestamp).toLocaleString()}</span>
-                        </div>
-                        <p className="text-sm text-gray-300">{comment.content}</p>
-                      </motion.div>
-                    ))}
+                          <p className="text-sm text-muted-foreground">{comment.content}</p>
+                        </motion.div>
+                      ))
+                    )}
                   </div>
 
                   {/* Add Comment */}
@@ -705,18 +714,18 @@ export default function ApprovalWorkflow() {
                       <select
                         value={commentType}
                         onChange={(e) => setCommentType(e.target.value as any)}
-                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-md focus:border-blue-500/50 focus:outline-none text-white text-sm"
+                        className="input-field text-sm"
                       >
-                        <option value="comment" className="bg-slate-800">
+                        <option value="comment" className="bg-dark-blue-800">
                           💬 Comment
                         </option>
-                        <option value="approval" className="bg-slate-800">
+                        <option value="approval" className="bg-dark-blue-800">
                           ✅ Approval
                         </option>
-                        <option value="rejection" className="bg-slate-800">
+                        <option value="rejection" className="bg-dark-blue-800">
                           ❌ Rejection
                         </option>
-                        <option value="change-request" className="bg-slate-800">
+                        <option value="change-request" className="bg-dark-blue-800">
                           🔄 Change Request
                         </option>
                       </select>
@@ -725,14 +734,10 @@ export default function ApprovalWorkflow() {
                       placeholder="Add your comment or feedback..."
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      className="bg-white/5 border-white/10 resize-none"
+                      className="textarea-field"
                       rows={3}
                     />
-                    <Button
-                      onClick={addComment}
-                      disabled={!newComment.trim()}
-                      className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-                    >
+                    <Button onClick={addComment} disabled={!newComment.trim()} className="btn-gradient">
                       <Send className="w-4 h-4 mr-2" />
                       Add Comment
                     </Button>

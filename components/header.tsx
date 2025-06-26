@@ -67,7 +67,7 @@ export default function Header() {
     <header
       className={cn(
         "fixed top-0 w-full z-50 transition-all duration-300",
-        isScrolled ? "bg-background/95 backdrop-blur-md border-b shadow-sm" : "bg-transparent",
+        isScrolled ? "bg-background/90 backdrop-blur-md border-b border-border shadow-lg" : "bg-transparent",
       )}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -76,7 +76,7 @@ export default function Header() {
             <Link href="/" className="flex items-center space-x-2">
               <Image src="/images/logo.png" alt="Limitless Infotech" width={40} height={40} className="w-10 h-10" />
               <div>
-                <p className="text-lg font-bold leading-none">LIMITLESS INFOTECH</p>
+                <p className="text-lg font-bold leading-none text-foreground">LIMITLESS INFOTECH</p>
                 <p className="text-xs text-muted-foreground">SOLUTION'S PVT LTD</p>
               </div>
             </Link>
@@ -95,7 +95,7 @@ export default function Header() {
                     )}
                   >
                     {item.name}
-                    <ChevronDown className="ml-1 h-4 w-4" />
+                    <ChevronDown className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180" />
                   </button>
                 ) : (
                   <Link
@@ -110,7 +110,7 @@ export default function Header() {
                 )}
 
                 {item.submenu && openSubmenu === item.name && (
-                  <div className="absolute left-0 mt-2 w-48 rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="absolute left-0 mt-2 w-48 rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none animate-fade-in">
                     <div className="py-1">
                       {item.submenu.map((subitem) => (
                         <Link
@@ -133,19 +133,19 @@ export default function Header() {
 
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Button asChild className="hidden md:inline-flex">
+            <Button asChild className="hidden md:inline-flex btn-gradient">
               <Link href="/contact">Get in Touch</Link>
             </Button>
 
             {/* Mobile menu button */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="md:hidden text-foreground hover:bg-muted">
                   <Menu className="h-6 w-6" />
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background border-l border-border">
                 <nav className="flex flex-col gap-4 mt-8">
                   {navigation.map((item) => (
                     <div key={item.name}>
@@ -153,7 +153,7 @@ export default function Header() {
                         <>
                           <button
                             onClick={() => toggleSubmenu(item.name)}
-                            className="flex items-center justify-between w-full text-lg font-medium py-2"
+                            className="flex items-center justify-between w-full text-lg font-medium py-2 text-foreground hover:text-primary"
                           >
                             {item.name}
                             <ChevronDown
@@ -161,7 +161,7 @@ export default function Header() {
                             />
                           </button>
                           {openSubmenu === item.name && (
-                            <div className="ml-4 mt-2 flex flex-col space-y-2">
+                            <div className="ml-4 mt-2 flex flex-col space-y-2 animate-fade-in-up">
                               {item.submenu.map((subitem) => (
                                 <Link
                                   key={subitem.name}
@@ -190,7 +190,7 @@ export default function Header() {
                       )}
                     </div>
                   ))}
-                  <Button asChild className="mt-4">
+                  <Button asChild className="mt-4 btn-gradient">
                     <Link href="/contact">Get in Touch</Link>
                   </Button>
                 </nav>

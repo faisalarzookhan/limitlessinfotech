@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,28 +18,30 @@ import {
   CheckCheck,
   Clock,
   Smile,
+  Loader2,
 } from "lucide-react"
+import { supabase } from "@/lib/database" // Import Supabase client
 
 interface ChatMessage {
   id: string
-  senderId: string
-  senderName: string
-  senderAvatar: string
+  room_id: string // Corresponds to Supabase table column
+  sender_id: string // Corresponds to Supabase table column
+  sender_name?: string // Derived from sender_id
+  sender_avatar?: string // Derived from sender_id
   content: string
-  timestamp: string
+  timestamp: string // ISO string from DB
   type: "text" | "file" | "image" | "system"
-  fileUrl?: string
-  fileName?: string
-  fileSize?: string
-  status: "sending" | "sent" | "delivered" | "read"
-  replyTo?: string
+  file_url?: string // Corresponds to Supabase table column
+  file_name?: string // Corresponds to Supabase table column
+  file_size?: string // Corresponds to Supabase table column
+  status: "sending" | "sent" | "delivered" | "read" // Client-side status
 }
 
 interface ChatRoom {
   id: string
   name: string
   type: "direct" | "group" | "project"
-  participants: string[]
+  participants: string[] // User IDs
   lastMessage?: ChatMessage
   unreadCount: number
   isOnline: boolean
@@ -54,6 +56,7 @@ interface ChatUser {
   lastSeen: string
 }
 
+// Mock data for users and rooms (these would ideally come from your DB)
 const mockUsers: ChatUser[] = [
   {
     id: "EMP001",
@@ -83,6 +86,7 @@ const mockUsers: ChatUser[] = [
     status: "online",
     lastSeen: "1 minute ago",
   },
+  // Add more mock users as needed, matching your actual user IDs
 ]
 
 const mockChatRooms: ChatRoom[] = [
@@ -115,52 +119,6 @@ const mockChatRooms: ChatRoom[] = [
   },
 ]
 
-const mockMessages: ChatMessage[] = [
-  {
-    id: "msg1",
-    senderId: "EMP002",
-    senderName: "Sarah Smith",
-    senderAvatar: "👩‍🎨",
-    content: "Hey team! I've finished the new design mockups. Ready for review!",
-    timestamp: "2024-01-16 14:30",
-    type: "text",
-    status: "read",
-  },
-  {
-    id: "msg2",
-    senderId: "EMP001",
-    senderName: "John Doe",
-    senderAvatar: "👨‍💻",
-    content: "Great work! I'll integrate them into the frontend today.",
-    timestamp: "2024-01-16 14:32",
-    type: "text",
-    status: "read",
-  },
-  {
-    id: "msg3",
-    senderId: "EMP002",
-    senderName: "Sarah Smith",
-    senderAvatar: "👩‍🎨",
-    content: "design-mockups-v2.fig",
-    timestamp: "2024-01-16 14:35",
-    type: "file",
-    fileUrl: "/files/design-mockups-v2.fig",
-    fileName: "design-mockups-v2.fig",
-    fileSize: "15.7 MB",
-    status: "delivered",
-  },
-  {
-    id: "msg4",
-    senderId: "CLIENT001",
-    senderName: "TechCorp Client",
-    senderAvatar: "🏢",
-    content: "The designs look fantastic! Can we schedule a call to discuss the implementation timeline?",
-    timestamp: "2024-01-16 15:00",
-    type: "text",
-    status: "sent",
-  },
-]
-
 interface RealTimeChatProps {
   currentUserId: string
   isMinimized?: boolean
@@ -169,61 +127,153 @@ interface RealTimeChatProps {
 
 export default function RealTimeChat({ currentUserId, isMinimized = false, onToggleMinimize }: RealTimeChatProps) {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(mockChatRooms[0])
-  const [messages, setMessages] = useState<ChatMessage[]>(mockMessages)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [newMessage, setNewMessage] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
-  const [typingUsers, setTypingUsers] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
+  const [typingUsers, setTypingUsers] = useState<string[]>([]) // Still mock for now
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
+  const [loadingMessages, setLoadingMessages] = useState(false)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  const getUserDetails = useCallback((userId: string) => {
+    // In a real app, you'd fetch this from your 'users' table or a global state
+    return (
+      mockUsers.find((u) => u.id === userId) || {
+        id: userId,
+        name: "Unknown",
+        avatar: "👤",
+        status: "offline",
+        lastSeen: "",
+      }
+    )
+  }, [])
+
+  const fetchMessages = useCallback(
+    async (roomId: string) => {
+      setLoadingMessages(true)
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("room_id", roomId)
+        .order("timestamp", { ascending: true })
+
+      if (error) {
+        console.error("Error fetching messages:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load messages.",
+          variant: "destructive",
+        })
+        setMessages([])
+      } else {
+        const formattedMessages: ChatMessage[] = data.map((msg) => ({
+          ...msg,
+          sender_name: getUserDetails(msg.sender_id).name,
+          sender_avatar: getUserDetails(msg.sender_id).avatar,
+          status: "read", // Assume fetched messages are read
+        }))
+        setMessages(formattedMessages)
+      }
+      setLoadingMessages(false)
+    },
+    [toast, getUserDetails],
+  )
+
+  useEffect(() => {
+    if (!selectedRoom) return
+
+    fetchMessages(selectedRoom.id)
+
+    // Set up Realtime subscription
+    const channel = supabase
+      .channel(`chat_room_${selectedRoom.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+          filter: `room_id=eq.${selectedRoom.id}`,
+        },
+        (payload) => {
+          const newMsg = payload.new as ChatMessage
+          setMessages((prev) => [
+            ...prev,
+            {
+              ...newMsg,
+              sender_name: getUserDetails(newMsg.sender_id).name,
+              sender_avatar: getUserDetails(newMsg.sender_id).avatar,
+              status: "delivered", // Mark as delivered when received via Realtime
+            },
+          ])
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [selectedRoom, fetchMessages, getUserDetails])
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
 
-  // Simulate real-time message updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate typing indicators
-      if (Math.random() > 0.8) {
-        const randomUser = mockUsers[Math.floor(Math.random() * mockUsers.length)]
-        setTypingUsers([randomUser.name])
-        setTimeout(() => setTypingUsers([]), 2000)
-      }
-    }, 5000)
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
 
-    return () => clearInterval(interval)
-  }, [])
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedRoom || !currentUserId) return
 
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedRoom) return
-
-    const message: ChatMessage = {
-      id: `msg${Date.now()}`,
-      senderId: currentUserId,
-      senderName: mockUsers.find((u) => u.id === currentUserId)?.name || "You",
-      senderAvatar: mockUsers.find((u) => u.id === currentUserId)?.avatar || "👤",
+    const messageToInsert = {
+      room_id: selectedRoom.id,
+      sender_id: currentUserId,
       content: newMessage,
       timestamp: new Date().toISOString(),
       type: "text",
-      status: "sending",
+      file_url: null,
+      file_name: null,
+      file_size: null,
     }
 
-    setMessages([...messages, message])
+    // Optimistic update
+    const tempId = `temp-${Date.now()}`
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      ...messageToInsert,
+      sender_name: getUserDetails(currentUserId).name,
+      sender_avatar: getUserDetails(currentUserId).avatar,
+      status: "sending",
+    }
+    setMessages((prev) => [...prev, optimisticMessage])
     setNewMessage("")
 
-    // Simulate message delivery
-    setTimeout(() => {
-      setMessages((prev) => prev.map((msg) => (msg.id === message.id ? { ...msg, status: "sent" } : msg)))
-    }, 1000)
+    const { data, error } = await supabase.from("chat_messages").insert(messageToInsert).select().single()
 
-    setTimeout(() => {
-      setMessages((prev) => prev.map((msg) => (msg.id === message.id ? { ...msg, status: "delivered" } : msg)))
-    }, 2000)
+    if (error) {
+      console.error("Error sending message:", error)
+      toast({
+        title: "Error",
+        description: "Failed to send message.",
+        variant: "destructive",
+      })
+      // Revert optimistic update on error
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempId))
+    } else {
+      // Update optimistic message with real ID and status
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId
+            ? {
+                ...data,
+                status: "sent",
+                sender_name: getUserDetails(data.sender_id).name,
+                sender_avatar: getUserDetails(data.sender_id).avatar,
+              }
+            : msg,
+        ),
+      )
+    }
   }
 
   const getStatusIcon = (status: string) => {
@@ -359,60 +409,70 @@ export default function RealTimeChat({ currentUserId, isMinimized = false, onTog
           {/* Messages Area */}
           <div className="flex-1 flex flex-col">
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {messages.map((message, index) => {
-                const isOwn = message.senderId === currentUserId
-                const showAvatar = index === 0 || messages[index - 1].senderId !== message.senderId
+              {loadingMessages ? (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex justify-center items-center h-full text-gray-400">
+                  No messages yet. Start the conversation!
+                </div>
+              ) : (
+                messages.map((message, index) => {
+                  const isOwn = message.sender_id === currentUserId
+                  const showAvatar = index === 0 || messages[index - 1].sender_id !== message.sender_id
 
-                return (
-                  <motion.div
-                    key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                  >
-                    <div className={`flex space-x-2 max-w-[80%] ${isOwn ? "flex-row-reverse space-x-reverse" : ""}`}>
-                      {showAvatar && !isOwn && (
-                        <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-xs flex-shrink-0">
-                          {message.senderAvatar}
-                        </div>
-                      )}
-                      <div className={`${showAvatar && !isOwn ? "" : "ml-8"}`}>
-                        {showAvatar && !isOwn && <p className="text-xs text-gray-400 mb-1">{message.senderName}</p>}
-                        <div
-                          className={`p-3 rounded-lg ${
-                            isOwn
-                              ? "bg-blue-500/20 text-blue-100"
-                              : message.type === "system"
-                                ? "bg-gray-500/20 text-gray-300 text-center"
-                                : "bg-white/10 text-white"
-                          }`}
-                        >
-                          {message.type === "file" ? (
-                            <div className="flex items-center space-x-2">
-                              <File className="w-4 h-4" />
-                              <div>
-                                <p className="text-sm font-medium">{message.fileName}</p>
-                                <p className="text-xs text-gray-400">{message.fileSize}</p>
+                  return (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                    >
+                      <div className={`flex space-x-2 max-w-[80%] ${isOwn ? "flex-row-reverse space-x-reverse" : ""}`}>
+                        {showAvatar && !isOwn && (
+                          <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-xs flex-shrink-0">
+                            {message.sender_avatar}
+                          </div>
+                        )}
+                        <div className={`${showAvatar && !isOwn ? "" : "ml-8"}`}>
+                          {showAvatar && !isOwn && <p className="text-xs text-gray-400 mb-1">{message.sender_name}</p>}
+                          <div
+                            className={`p-3 rounded-lg ${
+                              isOwn
+                                ? "bg-blue-500/20 text-blue-100"
+                                : message.type === "system"
+                                  ? "bg-gray-500/20 text-gray-300 text-center"
+                                  : "bg-white/10 text-white"
+                            }`}
+                          >
+                            {message.type === "file" ? (
+                              <div className="flex items-center space-x-2">
+                                <File className="w-4 h-4" />
+                                <div>
+                                  <p className="text-sm font-medium">{message.file_name}</p>
+                                  <p className="text-xs text-gray-400">{message.file_size}</p>
+                                </div>
                               </div>
-                            </div>
-                          ) : (
-                            <p className="text-sm">{message.content}</p>
-                          )}
-                        </div>
-                        <div className={`flex items-center space-x-2 mt-1 ${isOwn ? "justify-end" : ""}`}>
-                          <span className="text-xs text-gray-500">
-                            {new Date(message.timestamp).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          {isOwn && getStatusIcon(message.status)}
+                            ) : (
+                              <p className="text-sm">{message.content}</p>
+                            )}
+                          </div>
+                          <div className={`flex items-center space-x-2 mt-1 ${isOwn ? "justify-end" : ""}`}>
+                            <span className="text-xs text-gray-500">
+                              {new Date(message.timestamp).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                            {isOwn && getStatusIcon(message.status)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )
-              })}
+                    </motion.div>
+                  )
+                })
+              )}
 
               {/* Typing Indicator */}
               {typingUsers.length > 0 && (

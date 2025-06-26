@@ -2,539 +2,365 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Input } from "@/components/ui/input"
+import { useToast } from "@/hooks/use-toast"
+import { useCurrency } from "@/components/currency-provider"
 import {
   Download,
   Upload,
-  Calendar,
-  Clock,
+  History,
   HardDrive,
-  RefreshCw,
+  Cloud,
   Settings,
-  Trash2,
+  AlertTriangle,
   CheckCircle,
-  XCircle,
-  Play,
-  Pause,
+  Plus,
+  Trash,
+  RefreshCw,
+  DollarSign,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface Backup {
   id: string
   name: string
-  type: "full" | "incremental" | "database" | "files"
+  type: "full" | "database" | "files"
   size: string
-  created: string
-  status: "completed" | "running" | "failed" | "scheduled"
-  location: "local" | "cloud" | "remote"
-}
-
-interface BackupSchedule {
-  id: string
-  name: string
-  frequency: "daily" | "weekly" | "monthly"
-  time: string
-  type: "full" | "incremental"
-  enabled: boolean
-  lastRun: string
-  nextRun: string
+  date: string
+  status: "completed" | "in-progress" | "failed"
+  location: "local" | "cloud"
 }
 
 const mockBackups: Backup[] = [
   {
-    id: "1",
-    name: "Full Site Backup - 2024-01-15",
+    id: "bkp1",
+    name: "Full Website Backup - Jan 2024",
     type: "full",
-    size: "2.3 GB",
-    created: "2024-01-15 02:00:00",
+    size: "2.5 GB",
+    date: "2024-01-20 03:00 AM",
     status: "completed",
     location: "cloud",
   },
   {
-    id: "2",
-    name: "Database Backup - 2024-01-15",
+    id: "bkp2",
+    name: "Database Backup - Feb 2024",
     type: "database",
-    size: "245 MB",
-    created: "2024-01-15 01:30:00",
+    size: "500 MB",
+    date: "2024-02-15 04:00 AM",
     status: "completed",
     location: "local",
   },
   {
-    id: "3",
-    name: "Files Backup - 2024-01-14",
+    id: "bkp3",
+    name: "Files Backup - Mar 2024",
     type: "files",
-    size: "1.8 GB",
-    created: "2024-01-14 23:00:00",
-    status: "completed",
-    location: "remote",
-  },
-  {
-    id: "4",
-    name: "Incremental Backup - 2024-01-14",
-    type: "incremental",
-    size: "156 MB",
-    created: "2024-01-14 12:00:00",
-    status: "running",
+    size: "1.2 GB",
+    date: "2024-03-10 05:00 AM",
+    status: "in-progress",
     location: "cloud",
   },
-]
-
-const mockSchedules: BackupSchedule[] = [
   {
-    id: "1",
-    name: "Daily Database Backup",
-    frequency: "daily",
-    time: "02:00",
-    type: "incremental",
-    enabled: true,
-    lastRun: "2024-01-15 02:00",
-    nextRun: "2024-01-16 02:00",
-  },
-  {
-    id: "2",
-    name: "Weekly Full Backup",
-    frequency: "weekly",
-    time: "01:00",
+    id: "bkp4",
+    name: "Full Website Backup - Apr 2024",
     type: "full",
-    enabled: true,
-    lastRun: "2024-01-15 01:00",
-    nextRun: "2024-01-22 01:00",
-  },
-  {
-    id: "3",
-    name: "Monthly Archive",
-    frequency: "monthly",
-    time: "00:00",
-    type: "full",
-    enabled: false,
-    lastRun: "2024-01-01 00:00",
-    nextRun: "2024-02-01 00:00",
+    size: "2.6 GB",
+    date: "2024-04-05 03:00 AM",
+    status: "failed",
+    location: "local",
   },
 ]
 
 export default function BackupManager() {
   const [backups, setBackups] = useState<Backup[]>(mockBackups)
-  const [schedules, setSchedules] = useState<BackupSchedule[]>(mockSchedules)
-  const [activeTab, setActiveTab] = useState<"backups" | "schedules" | "restore">("backups")
+  const [newBackupName, setNewBackupName] = useState("")
+  const [newBackupType, setNewBackupType] = useState<"full" | "database" | "files">("full")
+  const [backupProgress, setBackupProgress] = useState(0)
+  const { toast } = useToast()
+  const { convertCurrency, targetCurrency, formatCurrency } = useCurrency()
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="w-4 h-4 text-green-400" />
-      case "running":
-        return <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />
-      case "failed":
-        return <XCircle className="w-4 h-4 text-red-400" />
-      case "scheduled":
-        return <Clock className="w-4 h-4 text-yellow-400" />
-      default:
-        return <Clock className="w-4 h-4 text-gray-400" />
+  const handleCreateBackup = () => {
+    if (!newBackupName.trim()) {
+      toast({
+        title: "Error",
+        description: "Backup name cannot be empty.",
+        variant: "destructive",
+      })
+      return
     }
+
+    const newBackup: Backup = {
+      id: `bkp${Date.now()}`,
+      name: newBackupName,
+      type: newBackupType,
+      size: "Calculating...",
+      date: new Date().toLocaleString(),
+      status: "in-progress",
+      location: "cloud", // Default to cloud for new backups
+    }
+
+    setBackups((prev) => [newBackup, ...prev])
+    setNewBackupName("")
+    setBackupProgress(0)
+
+    toast({
+      title: "Backup Initiated",
+      description: `"${newBackupName}" backup is now in progress.`,
+    })
+
+    // Simulate progress
+    let progress = 0
+    const interval = setInterval(() => {
+      progress += 10
+      setBackupProgress(progress)
+      if (progress >= 100) {
+        clearInterval(interval)
+        setBackups((prev) =>
+          prev.map((b) =>
+            b.id === newBackup.id
+              ? {
+                  ...b,
+                  status: "completed",
+                  size: `${(Math.random() * 3 + 0.5).toFixed(1)} GB`,
+                }
+              : b,
+          ),
+        )
+        toast({
+          title: "Backup Completed",
+          description: `"${newBackupName}" backup finished successfully.`,
+          variant: "success",
+        })
+      }
+    }, 300)
+  }
+
+  const handleDeleteBackup = (id: string) => {
+    setBackups((prev) => prev.filter((b) => b.id !== id))
+    toast({
+      title: "Backup Deleted",
+      description: "The backup has been removed.",
+    })
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "bg-green-500/20 text-green-300"
-      case "running":
-        return "bg-blue-500/20 text-blue-300"
+        return "bg-accent-green/20 text-accent-green"
+      case "in-progress":
+        return "bg-primary/20 text-primary"
       case "failed":
-        return "bg-red-500/20 text-red-300"
-      case "scheduled":
-        return "bg-yellow-500/20 text-yellow-300"
+        return "bg-destructive/20 text-destructive"
       default:
-        return "bg-gray-500/20 text-gray-300"
+        return "bg-muted/20 text-muted-foreground"
     }
   }
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "full":
-        return "bg-purple-500/20 text-purple-300"
-      case "incremental":
-        return "bg-blue-500/20 text-blue-300"
-      case "database":
-        return "bg-green-500/20 text-green-300"
-      case "files":
-        return "bg-orange-500/20 text-orange-300"
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-4 h-4 text-accent-green" />
+      case "in-progress":
+        return <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+      case "failed":
+        return <AlertTriangle className="w-4 h-4 text-destructive" />
       default:
-        return "bg-gray-500/20 text-gray-300"
+        return null
     }
   }
 
-  const getLocationIcon = (location: string) => {
-    switch (location) {
-      case "cloud":
-        return "☁️"
-      case "remote":
-        return "🌐"
-      case "local":
-        return "💾"
-      default:
-        return "📁"
-    }
-  }
-
-  const createBackup = (type: "full" | "incremental" | "database" | "files") => {
-    const newBackup: Backup = {
-      id: Date.now().toString(),
-      name: `${type.charAt(0).toUpperCase() + type.slice(1)} Backup - ${new Date().toISOString().split("T")[0]}`,
-      type,
-      size: "0 MB",
-      created: new Date().toISOString(),
-      status: "running",
-      location: "cloud",
-    }
-    setBackups([newBackup, ...backups])
-
-    // Simulate backup completion after 3 seconds
-    setTimeout(() => {
-      setBackups((prev) =>
-        prev.map((backup) =>
-          backup.id === newBackup.id
-            ? { ...backup, status: "completed", size: `${Math.floor(Math.random() * 1000) + 100} MB` }
-            : backup,
-        ),
-      )
-    }, 3000)
-  }
-
-  const deleteBackup = (id: string) => {
-    setBackups(backups.filter((backup) => backup.id !== id))
-  }
-
-  const toggleSchedule = (id: string) => {
-    setSchedules(
-      schedules.map((schedule) => (schedule.id === id ? { ...schedule, enabled: !schedule.enabled } : schedule)),
-    )
-  }
+  const premiumServiceUSD = 29.99
+  const premiumServiceConverted = convertCurrency(premiumServiceUSD, "USD", targetCurrency)
 
   return (
     <div className="space-y-6">
-      {/* Backup Manager Header */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      {/* Backup Overview */}
+      <Card className="custom-card">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Download className="w-5 h-5" />
+          <CardTitle className="text-foreground flex items-center space-x-2">
+            <Download className="w-5 h-5 text-primary" />
             <span>Backup Manager</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-4">
-            <Button
-              onClick={() => setActiveTab("backups")}
-              className={`${
-                activeTab === "backups" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Backups
-            </Button>
-            <Button
-              onClick={() => setActiveTab("schedules")}
-              className={`${
-                activeTab === "schedules" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
-            >
-              <Calendar className="w-4 h-4 mr-2" />
-              Schedules
-            </Button>
-            <Button
-              onClick={() => setActiveTab("restore")}
-              className={`${
-                activeTab === "restore" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Restore
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div>
+              <h3 className="text-2xl font-bold text-foreground">{backups.length}</h3>
+              <p className="text-muted-foreground text-sm">Total Backups</p>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-accent-green">
+                {backups.filter((b) => b.status === "completed").length}
+              </h3>
+              <p className="text-muted-foreground text-sm">Completed</p>
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-primary">
+                {backups.filter((b) => b.status === "in-progress").length}
+              </h3>
+              <p className="text-muted-foreground text-sm">In Progress</p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {activeTab === "backups" && (
-        <>
-          {/* Create Backup */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardHeader>
-              <CardTitle>Create New Backup</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button
-                  onClick={() => createBackup("full")}
-                  className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30"
-                >
-                  <HardDrive className="w-4 h-4 mr-2" />
-                  Full Backup
-                </Button>
-                <Button
-                  onClick={() => createBackup("incremental")}
-                  className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Incremental
-                </Button>
-                <Button
-                  onClick={() => createBackup("database")}
-                  className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Database Only
-                </Button>
-                <Button
-                  onClick={() => createBackup("files")}
-                  className="bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Files Only
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Backup List */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardHeader>
-              <CardTitle>Backup History</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b border-white/10">
-                    <tr className="text-left">
-                      <th className="p-4 font-medium">Backup Name</th>
-                      <th className="p-4 font-medium">Type</th>
-                      <th className="p-4 font-medium">Size</th>
-                      <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Location</th>
-                      <th className="p-4 font-medium">Created</th>
-                      <th className="p-4 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {backups.map((backup, index) => (
-                      <motion.tr
-                        key={backup.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="border-b border-white/5 hover:bg-white/5"
-                      >
-                        <td className="p-4 font-medium">{backup.name}</td>
-                        <td className="p-4">
-                          <Badge className={getTypeColor(backup.type)}>{backup.type}</Badge>
-                        </td>
-                        <td className="p-4 text-gray-400">{backup.size}</td>
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            {getStatusIcon(backup.status)}
-                            <Badge className={getStatusColor(backup.status)}>{backup.status}</Badge>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <span>{getLocationIcon(backup.location)}</span>
-                            <span className="text-gray-400 capitalize">{backup.location}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-gray-400">{new Date(backup.created).toLocaleString()}</td>
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                              <Upload className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteBackup(backup.id)}
-                              className="hover:bg-red-500/10 text-red-400"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {activeTab === "schedules" && (
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader>
-            <CardTitle>Backup Schedules</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-white/10">
-                  <tr className="text-left">
-                    <th className="p-4 font-medium">Schedule Name</th>
-                    <th className="p-4 font-medium">Frequency</th>
-                    <th className="p-4 font-medium">Time</th>
-                    <th className="p-4 font-medium">Type</th>
-                    <th className="p-4 font-medium">Last Run</th>
-                    <th className="p-4 font-medium">Next Run</th>
-                    <th className="p-4 font-medium">Status</th>
-                    <th className="p-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {schedules.map((schedule, index) => (
-                    <motion.tr
-                      key={schedule.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="border-b border-white/5 hover:bg-white/5"
-                    >
-                      <td className="p-4 font-medium">{schedule.name}</td>
-                      <td className="p-4">
-                        <Badge className="bg-blue-500/20 text-blue-300 capitalize">{schedule.frequency}</Badge>
-                      </td>
-                      <td className="p-4 text-gray-400">{schedule.time}</td>
-                      <td className="p-4">
-                        <Badge className={getTypeColor(schedule.type)}>{schedule.type}</Badge>
-                      </td>
-                      <td className="p-4 text-gray-400">{schedule.lastRun}</td>
-                      <td className="p-4 text-gray-400">{schedule.nextRun}</td>
-                      <td className="p-4">
-                        <Badge
-                          className={
-                            schedule.enabled ? "bg-green-500/20 text-green-300" : "bg-gray-500/20 text-gray-300"
-                          }
-                        >
-                          {schedule.enabled ? "Active" : "Disabled"}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => toggleSchedule(schedule.id)}
-                            className="hover:bg-white/10"
-                          >
-                            {schedule.enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                          </Button>
-                          <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="hover:bg-red-500/10 text-red-400">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === "restore" && (
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader>
-            <CardTitle>Restore from Backup</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="text-center p-8">
-                <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-300 mb-2">Select Backup to Restore</h3>
-                <p className="text-gray-400 mb-6">
-                  Choose a backup from the list above or upload a backup file to restore your data.
-                </p>
-                <div className="flex justify-center space-x-4">
-                  <Button className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Backup File
-                  </Button>
-                  <Button className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30">
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Restore from Cloud
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border-t border-white/10 pt-6">
-                <h4 className="text-lg font-medium mb-4">Restore Options</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium">Restore Type</label>
-                    <select className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-md focus:border-blue-500/50 focus:outline-none text-white">
-                      <option value="full" className="bg-slate-800">
-                        Full Restore
-                      </option>
-                      <option value="selective" className="bg-slate-800">
-                        Selective Restore
-                      </option>
-                      <option value="database" className="bg-slate-800">
-                        Database Only
-                      </option>
-                      <option value="files" className="bg-slate-800">
-                        Files Only
-                      </option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium">Restore Location</label>
-                    <select className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-md focus:border-blue-500/50 focus:outline-none text-white">
-                      <option value="current" className="bg-slate-800">
-                        Current Location
-                      </option>
-                      <option value="staging" className="bg-slate-800">
-                        Staging Environment
-                      </option>
-                      <option value="custom" className="bg-slate-800">
-                        Custom Path
-                      </option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Backup Statistics */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      {/* Create New Backup */}
+      <Card className="custom-card">
         <CardHeader>
-          <CardTitle>Backup Statistics</CardTitle>
+          <CardTitle className="text-foreground flex items-center space-x-2">
+            <Plus className="w-5 h-5 text-primary" />
+            <span>Create New Backup</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">{backups.length}</div>
-              <div className="text-gray-400">Total Backups</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label htmlFor="backup-name" className="block text-sm font-medium text-muted-foreground mb-2">
+                Backup Name
+              </label>
+              <Input
+                id="backup-name"
+                placeholder="e.g., Monthly Full Backup"
+                value={newBackupName}
+                onChange={(e) => setNewBackupName(e.target.value)}
+                className="input-field"
+              />
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">
-                {backups.filter((b) => b.status === "completed").length}
+            <div>
+              <label htmlFor="backup-type" className="block text-sm font-medium text-muted-foreground mb-2">
+                Backup Type
+              </label>
+              <select
+                id="backup-type"
+                value={newBackupType}
+                onChange={(e) => setNewBackupType(e.target.value as "full" | "database" | "files")}
+                className="input-field appearance-none"
+              >
+                <option value="full">Full Website</option>
+                <option value="database">Database Only</option>
+                <option value="files">Files Only</option>
+              </select>
+            </div>
+            <Button onClick={handleCreateBackup} className="btn-gradient">
+              <Upload className="w-4 h-4 mr-2" />
+              Start Backup
+            </Button>
+          </div>
+          {backupProgress > 0 && backupProgress < 100 && (
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground mb-2">Backup Progress: {backupProgress}%</p>
+              <Progress value={backupProgress} className="h-2" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Premium Backup Service */}
+      <Card className="custom-card">
+        <CardHeader>
+          <CardTitle className="text-foreground flex items-center space-x-2">
+            <DollarSign className="w-5 h-5 text-accent-green" />
+            <span>Premium Backup Service</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground mb-4">
+            Upgrade to our premium backup service for automated daily backups, unlimited storage, and faster recovery
+            times.
+          </p>
+          <div className="flex items-center justify-between bg-muted/20 border border-border rounded-md p-4 mb-4">
+            <div className="flex items-center space-x-3">
+              <Cloud className="w-6 h-6 text-accent-cyan" />
+              <div>
+                <p className="text-lg font-semibold text-foreground">Monthly Cost</p>
+                <p className="text-sm text-muted-foreground">Billed Annually</p>
               </div>
-              <div className="text-gray-400">Successful</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-400">4.8 GB</div>
-              <div className="text-gray-400">Total Size</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">{schedules.filter((s) => s.enabled).length}</div>
-              <div className="text-gray-400">Active Schedules</div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-primary">
+                {formatCurrency(premiumServiceConverted, targetCurrency)}
+              </p>
+              <p className="text-sm text-muted-foreground">(USD {premiumServiceUSD.toFixed(2)})</p>
             </div>
           </div>
+          <Button className="btn-gradient w-full">Activate Premium Backup</Button>
+        </CardContent>
+      </Card>
+
+      {/* Backup History */}
+      <Card className="custom-card">
+        <CardHeader>
+          <CardTitle className="text-foreground flex items-center space-x-2">
+            <History className="w-5 h-5 text-primary" />
+            <span>Backup History</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {backups.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">No backups found. Create one to get started!</p>
+          ) : (
+            <div className="space-y-4">
+              {backups.map((backup) => (
+                <motion.div
+                  key={backup.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted/20 border border-border"
+                >
+                  <div className="flex items-center space-x-4">
+                    {backup.location === "cloud" ? (
+                      <Cloud className="w-6 h-6 text-accent-cyan" />
+                    ) : (
+                      <HardDrive className="w-6 h-6 text-accent-purple" />
+                    )}
+                    <div>
+                      <h3 className="font-medium text-foreground">{backup.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {backup.type.charAt(0).toUpperCase() + backup.type.slice(1)} Backup • {backup.size}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{backup.date}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Badge className={cn("px-3 py-1 rounded-full text-xs font-medium", getStatusColor(backup.status))}>
+                      {getStatusIcon(backup.status)}
+                      <span className="ml-1">{backup.status}</span>
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteBackup(backup.id)}
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      aria-label={`Delete ${backup.name}`}
+                    >
+                      <Trash className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Backup Settings (Placeholder) */}
+      <Card className="custom-card">
+        <CardHeader>
+          <CardTitle className="text-foreground flex items-center space-x-2">
+            <Settings className="w-5 h-5 text-primary" />
+            <span>Backup Settings</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            Configure your automated backup schedules and retention policies here.
+          </p>
+          <Button variant="outline" className="btn-outline-primary mt-4">
+            Go to Settings
+          </Button>
         </CardContent>
       </Card>
     </div>
