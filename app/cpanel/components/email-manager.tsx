@@ -1,21 +1,19 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Mail, Plus, Trash2, Edit, Key, Forward, Settings, Users } from "lucide-react"
+import { Mail, Plus, Trash2, Key, Users, Settings, Forward, Edit } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 interface EmailAccount {
   id: string
-  email: string
-  quota: string
-  used: string
+  address: string
+  storage: string
   created: string
-  lastLogin: string
-  status: "active" | "suspended"
 }
 
 interface EmailForwarder {
@@ -35,30 +33,21 @@ interface MailingList {
 const mockEmailAccounts: EmailAccount[] = [
   {
     id: "1",
-    email: "admin@limitless.com",
-    quota: "1000 MB",
-    used: "245 MB",
+    address: "admin@limitless.com",
+    storage: "1000 MB",
     created: "2024-01-10",
-    lastLogin: "2024-01-15 14:30",
-    status: "active",
   },
   {
     id: "2",
-    email: "support@limitless.com",
-    quota: "500 MB",
-    used: "89 MB",
+    address: "support@limitless.com",
+    storage: "500 MB",
     created: "2024-01-12",
-    lastLogin: "2024-01-15 09:15",
-    status: "active",
   },
   {
     id: "3",
-    email: "info@limitless.com",
-    quota: "250 MB",
-    used: "156 MB",
+    address: "info@limitless.com",
+    storage: "250 MB",
     created: "2024-01-08",
-    lastLogin: "2024-01-14 16:45",
-    status: "active",
   },
 ]
 
@@ -97,94 +86,162 @@ export default function EmailManager() {
   const [forwarders, setForwarders] = useState<EmailForwarder[]>(mockForwarders)
   const [mailingLists, setMailingLists] = useState<MailingList[]>(mockMailingLists)
   const [activeTab, setActiveTab] = useState<"accounts" | "forwarders" | "lists">("accounts")
-  const [newAccountForm, setNewAccountForm] = useState({
-    username: "",
-    password: "",
-    quota: "250",
-  })
-  const [newForwarderForm, setNewForwarderForm] = useState({
-    from: "",
-    to: "",
-  })
+  const [newEmailAddress, setNewEmailAddress] = useState("")
+  const [newEmailPassword, setNewEmailPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
 
-  const createEmailAccount = () => {
-    if (newAccountForm.username.trim() && newAccountForm.password.trim()) {
-      const newAccount: EmailAccount = {
-        id: Date.now().toString(),
-        email: `${newAccountForm.username}@limitless.com`,
-        quota: `${newAccountForm.quota} MB`,
-        used: "0 MB",
-        created: new Date().toISOString().split("T")[0],
-        lastLogin: "Never",
-        status: "active",
+  const fetchEmailAccounts = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/cpanel/email/accounts")
+      const data = await response.json()
+      if (data.success) {
+        setEmailAccounts(data.accounts)
+      } else {
+        throw new Error(data.error || "Failed to fetch email accounts.")
       }
-      setEmailAccounts([...emailAccounts, newAccount])
-      setNewAccountForm({ username: "", password: "", quota: "250" })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load email accounts.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchEmailAccounts()
+  }, [])
+
+  const handleCreateEmailAccount = async () => {
+    if (!newEmailAddress.trim() || !newEmailPassword.trim()) {
+      toast({ title: "Error", description: "Email address and password are required.", variant: "destructive" })
+      return
+    }
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/cpanel/email/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", address: newEmailAddress, password: newEmailPassword }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({ title: "Success!", description: "Email account created successfully." })
+        setEmailAccounts((prev) => [...prev, data.account])
+        setNewEmailAddress("")
+        setNewEmailPassword("")
+      } else {
+        throw new Error(data.error || "Failed to create email account.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteEmailAccount = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this email account? This action cannot be undone.")) {
+      return
+    }
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/cpanel/email/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({ title: "Success!", description: "Email account deleted successfully." })
+        setEmailAccounts((prev) => prev.filter((account) => account.id !== id))
+      } else {
+        throw new Error(data.error || "Failed to delete email account.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleChangePassword = async (id: string, currentAddress: string) => {
+    const newPassword = prompt(`Enter new password for ${currentAddress}:`)
+    if (!newPassword) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/cpanel/email/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "change_password", id, password: newPassword }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({ title: "Success!", description: `Password for ${currentAddress} changed.` })
+      } else {
+        throw new Error(data.error || "Failed to change password.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const createForwarder = () => {
-    if (newForwarderForm.from.trim() && newForwarderForm.to.trim()) {
-      const newForwarder: EmailForwarder = {
-        id: Date.now().toString(),
-        from: newForwarderForm.from,
-        to: newForwarderForm.to,
-        created: new Date().toISOString().split("T")[0],
-      }
-      setForwarders([...forwarders, newForwarder])
-      setNewForwarderForm({ from: "", to: "" })
-    }
-  }
-
-  const deleteEmailAccount = (id: string) => {
-    setEmailAccounts(emailAccounts.filter((account) => account.id !== id))
+    // Placeholder for createForwarder logic
   }
 
   const deleteForwarder = (id: string) => {
-    setForwarders(forwarders.filter((forwarder) => forwarder.id !== id))
-  }
-
-  const getUsagePercentage = (used: string, quota: string) => {
-    const usedMB = Number.parseInt(used.replace(" MB", ""))
-    const quotaMB = Number.parseInt(quota.replace(" MB", ""))
-    return Math.round((usedMB / quotaMB) * 100)
+    // Placeholder for deleteForwarder logic
   }
 
   return (
     <div className="space-y-6">
       {/* Email Manager Header */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      <Card className="custom-card">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Mail className="w-5 h-5" />
+          <CardTitle className="flex items-center space-x-2 text-foreground">
+            <Mail className="w-5 h-5 text-primary" />
             <span>Email Manager</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-4">
+          <div className="flex flex-wrap gap-4">
             <Button
               onClick={() => setActiveTab("accounts")}
-              className={`${
-                activeTab === "accounts" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
+              className={cn(activeTab === "accounts" ? "btn-gradient" : "btn-outline-primary")}
             >
               <Mail className="w-4 h-4 mr-2" />
               Email Accounts
             </Button>
             <Button
               onClick={() => setActiveTab("forwarders")}
-              className={`${
-                activeTab === "forwarders" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
+              className={cn(activeTab === "forwarders" ? "btn-gradient" : "btn-outline-primary")}
             >
               <Forward className="w-4 h-4 mr-2" />
               Forwarders
             </Button>
             <Button
               onClick={() => setActiveTab("lists")}
-              className={`${
-                activeTab === "lists" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
+              className={cn(activeTab === "lists" ? "btn-gradient" : "btn-outline-primary")}
             >
               <Users className="w-4 h-4 mr-2" />
               Mailing Lists
@@ -196,42 +253,26 @@ export default function EmailManager() {
       {activeTab === "accounts" && (
         <>
           {/* Create Email Account */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Create Email Account</CardTitle>
+              <CardTitle className="text-foreground">Create Email Account</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <Input
-                    placeholder="Username"
-                    value={newAccountForm.username}
-                    onChange={(e) => setNewAccountForm((prev) => ({ ...prev, username: e.target.value }))}
-                    className="bg-white/5 border-white/10"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Email: {newAccountForm.username}@limitless.com</p>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  placeholder="Email Address"
+                  value={newEmailAddress}
+                  onChange={(e) => setNewEmailAddress(e.target.value)}
+                  className="input-field"
+                />
                 <Input
                   type="password"
                   placeholder="Password"
-                  value={newAccountForm.password}
-                  onChange={(e) => setNewAccountForm((prev) => ({ ...prev, password: e.target.value }))}
-                  className="bg-white/5 border-white/10"
+                  value={newEmailPassword}
+                  onChange={(e) => setNewEmailPassword(e.target.value)}
+                  className="input-field"
                 />
-                <div>
-                  <Input
-                    type="number"
-                    placeholder="Quota (MB)"
-                    value={newAccountForm.quota}
-                    onChange={(e) => setNewAccountForm((prev) => ({ ...prev, quota: e.target.value }))}
-                    className="bg-white/5 border-white/10"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Storage limit in MB</p>
-                </div>
-                <Button
-                  onClick={createEmailAccount}
-                  className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
-                >
+                <Button onClick={handleCreateEmailAccount} className="btn-gradient">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Account
                 </Button>
@@ -240,81 +281,55 @@ export default function EmailManager() {
           </Card>
 
           {/* Email Accounts List */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Email Accounts</CardTitle>
+              <CardTitle className="text-foreground">Email Accounts</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="border-b border-white/10">
+                  <thead className="border-b border-border/50">
                     <tr className="text-left">
-                      <th className="p-4 font-medium">Email Address</th>
-                      <th className="p-4 font-medium">Quota</th>
-                      <th className="p-4 font-medium">Usage</th>
-                      <th className="p-4 font-medium">Created</th>
-                      <th className="p-4 font-medium">Last Login</th>
-                      <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Actions</th>
+                      <th className="p-4 font-medium table-header">Email Address</th>
+                      <th className="p-4 font-medium table-header">Storage</th>
+                      <th className="p-4 font-medium table-header">Created</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {emailAccounts.map((account, index) => (
-                      <motion.tr
+                      <tr
                         key={account.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="border-b border-white/5 hover:bg-white/5"
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
                       >
-                        <td className="p-4 font-medium">{account.email}</td>
-                        <td className="p-4 text-gray-400">{account.quota}</td>
-                        <td className="p-4">
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span>{account.used}</span>
-                              <span>{getUsagePercentage(account.used, account.quota)}%</span>
-                            </div>
-                            <div className="w-full bg-gray-700 rounded-full h-2">
-                              <div
-                                className="bg-blue-500 h-2 rounded-full"
-                                style={{ width: `${getUsagePercentage(account.used, account.quota)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4 text-gray-400">{account.created}</td>
-                        <td className="p-4 text-gray-400">{account.lastLogin}</td>
-                        <td className="p-4">
-                          <Badge
-                            className={`${
-                              account.status === "active"
-                                ? "bg-green-500/20 text-green-300"
-                                : "bg-red-500/20 text-red-300"
-                            }`}
-                          >
-                            {account.status}
-                          </Badge>
-                        </td>
+                        <td className="p-4 font-medium text-foreground">{account.address}</td>
+                        <td className="p-4 text-muted-foreground">{account.storage}</td>
+                        <td className="p-4 text-muted-foreground">{account.created}</td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="hover:bg-muted/10"
+                              onClick={() => handleChangePassword(account.id, account.address)}
+                            >
                               <Key className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <Settings className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => deleteEmailAccount(account.id)}
-                              className="hover:bg-red-500/10 text-red-400"
+                              onClick={() => handleDeleteEmailAccount(account.id)}
+                              className="hover:bg-destructive/10 text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -327,28 +342,15 @@ export default function EmailManager() {
       {activeTab === "forwarders" && (
         <>
           {/* Create Forwarder */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Create Email Forwarder</CardTitle>
+              <CardTitle className="text-foreground">Create Email Forwarder</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input
-                  placeholder="From email address"
-                  value={newForwarderForm.from}
-                  onChange={(e) => setNewForwarderForm((prev) => ({ ...prev, from: e.target.value }))}
-                  className="bg-white/5 border-white/10"
-                />
-                <Input
-                  placeholder="To email address"
-                  value={newForwarderForm.to}
-                  onChange={(e) => setNewForwarderForm((prev) => ({ ...prev, to: e.target.value }))}
-                  className="bg-white/5 border-white/10"
-                />
-                <Button
-                  onClick={createForwarder}
-                  className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
-                >
+                {/* Placeholder for From email address input */}
+                {/* Placeholder for To email address input */}
+                <Button onClick={createForwarder} className="btn-gradient">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Forwarder
                 </Button>
@@ -357,49 +359,47 @@ export default function EmailManager() {
           </Card>
 
           {/* Forwarders List */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Email Forwarders</CardTitle>
+              <CardTitle className="text-foreground">Email Forwarders</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="border-b border-white/10">
+                  <thead className="border-b border-border/50">
                     <tr className="text-left">
-                      <th className="p-4 font-medium">From</th>
-                      <th className="p-4 font-medium">To</th>
-                      <th className="p-4 font-medium">Created</th>
-                      <th className="p-4 font-medium">Actions</th>
+                      <th className="p-4 font-medium table-header">From</th>
+                      <th className="p-4 font-medium table-header">To</th>
+                      <th className="p-4 font-medium table-header">Created</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {forwarders.map((forwarder, index) => (
-                      <motion.tr
+                      <tr
                         key={forwarder.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="border-b border-white/5 hover:bg-white/5"
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
                       >
-                        <td className="p-4 font-medium">{forwarder.from}</td>
-                        <td className="p-4 text-gray-400">{forwarder.to}</td>
-                        <td className="p-4 text-gray-400">{forwarder.created}</td>
+                        <td className="p-4 font-medium text-foreground">{forwarder.from}</td>
+                        <td className="p-4 text-muted-foreground">{forwarder.to}</td>
+                        <td className="p-4 text-muted-foreground">{forwarder.created}</td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => deleteForwarder(forwarder.id)}
-                              className="hover:bg-red-500/10 text-red-400"
+                              className="hover:bg-destructive/10 text-destructive"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -410,49 +410,47 @@ export default function EmailManager() {
       )}
 
       {activeTab === "lists" && (
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+        <Card className="custom-card">
           <CardHeader>
-            <CardTitle>Mailing Lists</CardTitle>
+            <CardTitle className="text-foreground">Mailing Lists</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-white/10">
+                <thead className="border-b border-border/50">
                   <tr className="text-left">
-                    <th className="p-4 font-medium">List Name</th>
-                    <th className="p-4 font-medium">Members</th>
-                    <th className="p-4 font-medium">Created</th>
-                    <th className="p-4 font-medium">Actions</th>
+                    <th className="p-4 font-medium table-header">List Name</th>
+                    <th className="p-4 font-medium table-header">Members</th>
+                    <th className="p-4 font-medium table-header">Created</th>
+                    <th className="p-4 font-medium table-header">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {mailingLists.map((list, index) => (
-                    <motion.tr
+                    <tr
                       key={list.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="border-b border-white/5 hover:bg-white/5"
+                      className="table-row animate-fade-in-up"
+                      style={{ animationDelay: `${index * 0.05}s` }}
                     >
-                      <td className="p-4 font-medium">{list.name}</td>
+                      <td className="p-4 font-medium text-foreground">{list.name}</td>
                       <td className="p-4">
-                        <Badge className="bg-blue-500/20 text-blue-300">{list.members}</Badge>
+                        <Badge className="bg-accent-blue/20 text-accent-blue">{list.members}</Badge>
                       </td>
-                      <td className="p-4 text-gray-400">{list.created}</td>
+                      <td className="p-4 text-muted-foreground">{list.created}</td>
                       <td className="p-4">
                         <div className="flex items-center space-x-2">
-                          <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                          <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                             <Users className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                          <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                             <Settings className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="hover:bg-red-500/10 text-red-400">
+                          <Button size="sm" variant="ghost" className="hover:bg-destructive/10 text-destructive">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -462,27 +460,27 @@ export default function EmailManager() {
       )}
 
       {/* Email Statistics */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      <Card className="custom-card">
         <CardHeader>
-          <CardTitle>Email Statistics</CardTitle>
+          <CardTitle className="text-foreground">Email Statistics</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">{emailAccounts.length}</div>
-              <div className="text-gray-400">Email Accounts</div>
+              <div className="text-2xl font-bold text-accent-blue">{emailAccounts.length}</div>
+              <div className="text-muted-foreground">Email Accounts</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">{forwarders.length}</div>
-              <div className="text-gray-400">Forwarders</div>
+              <div className="text-2xl font-bold text-accent-green">{forwarders.length}</div>
+              <div className="text-muted-foreground">Forwarders</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-400">{mailingLists.length}</div>
-              <div className="text-gray-400">Mailing Lists</div>
+              <div className="text-2xl font-bold text-accent-orange">{mailingLists.length}</div>
+              <div className="text-muted-foreground">Mailing Lists</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">490 MB</div>
-              <div className="text-gray-400">Total Usage</div>
+              <div className="text-2xl font-bold text-accent-purple">490 MB</div>
+              <div className="text-muted-foreground">Total Usage</div>
             </div>
           </div>
         </CardContent>

@@ -1,34 +1,65 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 import { AuthService } from "@/lib/auth"
-import { validateRequest } from "@/lib/validation"
-import { z } from "zod"
 
-const createDomainSchema = z.object({
-  domain: z.string().min(3),
-  type: z.enum(["primary", "addon", "subdomain"]),
-  document_root: z.string().optional(),
-  ssl_enabled: z.boolean().default(false),
-})
-
-// Mock domain data - replace with actual database operations
+// Mock domain data
 const mockDomains = [
   {
-    id: "1",
-    domain: "limitless.com",
+    id: "domain_1",
+    name: "limitless.com",
     type: "primary",
-    document_root: "/public_html",
-    ssl_enabled: true,
     status: "active",
-    created_at: "2024-01-10T00:00:00Z",
+    created: "2024-01-15T10:00:00Z",
+    expires: "2025-01-15T10:00:00Z",
+    autoRenew: true,
+    ssl: {
+      enabled: true,
+      issuer: "Let's Encrypt",
+      expires: "2024-10-15T10:00:00Z",
+      autoRenew: true,
+    },
+    dns: [
+      { type: "A", name: "@", value: "192.168.1.100", ttl: 3600 },
+      { type: "A", name: "www", value: "192.168.1.100", ttl: 3600 },
+      { type: "MX", name: "@", value: "mail.limitless.com", priority: 10, ttl: 3600 },
+      { type: "CNAME", name: "mail", value: "limitless.com", ttl: 3600 },
+      { type: "TXT", name: "@", value: "v=spf1 include:_spf.google.com ~all", ttl: 3600 },
+    ],
   },
   {
-    id: "2",
-    domain: "limitlessinfotech.com",
-    type: "addon",
-    document_root: "/public_html/limitlessinfotech",
-    ssl_enabled: true,
+    id: "domain_2",
+    name: "api.limitless.com",
+    type: "subdomain",
     status: "active",
-    created_at: "2024-01-12T00:00:00Z",
+    created: "2024-02-20T14:30:00Z",
+    expires: null,
+    autoRenew: false,
+    ssl: {
+      enabled: true,
+      issuer: "Let's Encrypt",
+      expires: "2024-11-20T14:30:00Z",
+      autoRenew: true,
+    },
+    dns: [
+      { type: "A", name: "@", value: "192.168.1.101", ttl: 3600 },
+      { type: "CNAME", name: "www", value: "api.limitless.com", ttl: 3600 },
+    ],
+  },
+  {
+    id: "domain_3",
+    name: "dev.limitless.com",
+    type: "subdomain",
+    status: "active",
+    created: "2024-03-10T09:15:00Z",
+    expires: null,
+    autoRenew: false,
+    ssl: {
+      enabled: false,
+      issuer: null,
+      expires: null,
+      autoRenew: false,
+    },
+    dns: [{ type: "A", name: "@", value: "192.168.1.102", ttl: 3600 }],
   },
 ]
 
@@ -40,7 +71,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
+    const user = await AuthService.verifyToken(token)
 
     if (!user) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
@@ -48,21 +79,32 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
-    const status = searchParams.get("status")
+    const domainId = searchParams.get("domainId")
 
-    let domains = mockDomains
+    // Get DNS records for a specific domain
+    if (domainId) {
+      const domain = mockDomains.find((d) => d.id === domainId)
+      if (!domain) {
+        return NextResponse.json({ error: "Domain not found" }, { status: 404 })
+      }
 
-    if (type) {
-      domains = domains.filter((d) => d.type === type)
+      return NextResponse.json({
+        success: true,
+        domain: domain.name,
+        dns: domain.dns,
+      })
     }
 
-    if (status) {
-      domains = domains.filter((d) => d.status === status)
+    let filteredDomains = mockDomains
+
+    if (type) {
+      filteredDomains = filteredDomains.filter((domain) => domain.type === type)
     }
 
     return NextResponse.json({
       success: true,
-      data: domains,
+      domains: filteredDomains,
+      total: filteredDomains.length,
     })
   } catch (error) {
     console.error("Get domains error:", error)
@@ -78,38 +120,126 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
+    const user = await AuthService.verifyToken(token)
 
-    if (!user || (user.role !== "admin" && user.role !== "employee")) {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+    if (!user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
     const body = await request.json()
-    const validation = validateRequest(createDomainSchema, body)
+    const { action, name, type, dnsRecords, sslEnabled } = body
 
-    if (!validation.success) {
-      return NextResponse.json({ error: "Validation failed", details: validation.errors }, { status: 400 })
+    if (!action) {
+      return NextResponse.json({ error: "Action is required" }, { status: 400 })
     }
 
-    // Simulate domain creation
-    const newDomain = {
-      id: Date.now().toString(),
-      ...validation.data,
-      status: "pending",
-      created_at: new Date().toISOString(),
-      created_by: user.id,
+    if (action === "add_domain") {
+      if (!name || !type) {
+        return NextResponse.json({ error: "Domain name and type are required" }, { status: 400 })
+      }
+
+      // Check if domain already exists
+      if (mockDomains.find((d) => d.name === name)) {
+        return NextResponse.json({ error: "Domain already exists" }, { status: 409 })
+      }
+
+      const newDomain = {
+        id: `domain_${Date.now()}`,
+        name,
+        type,
+        status: "active",
+        created: new Date().toISOString(),
+        expires: type === "primary" ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null,
+        autoRenew: type === "primary",
+        ssl: {
+          enabled: sslEnabled || false,
+          issuer: sslEnabled ? "Let's Encrypt" : null,
+          expires: sslEnabled ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() : null,
+          autoRenew: sslEnabled || false,
+        },
+        dns: dnsRecords || [{ type: "A", name: "@", value: "192.168.1.100", ttl: 3600 }],
+      }
+
+      mockDomains.push(newDomain)
+
+      return NextResponse.json(
+        {
+          success: true,
+          domain: newDomain,
+          message: "Domain added successfully",
+        },
+        { status: 201 },
+      )
     }
 
-    return NextResponse.json(
-      {
+    if (action === "update_dns") {
+      const { domainId, dns } = body
+
+      if (!domainId || !dns) {
+        return NextResponse.json({ error: "Domain ID and DNS records are required" }, { status: 400 })
+      }
+
+      const domainIndex = mockDomains.findIndex((d) => d.id === domainId)
+      if (domainIndex === -1) {
+        return NextResponse.json({ error: "Domain not found" }, { status: 404 })
+      }
+
+      mockDomains[domainIndex].dns = dns
+
+      return NextResponse.json({
         success: true,
-        data: newDomain,
-        message: "Domain created successfully",
-      },
-      { status: 201 },
-    )
+        domain: mockDomains[domainIndex],
+        message: "DNS records updated successfully",
+      })
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 })
   } catch (error) {
-    console.error("Create domain error:", error)
+    console.error("Domain operation error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    const user = await AuthService.verifyToken(token)
+
+    if (!user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) {
+      return NextResponse.json({ error: "Domain ID is required" }, { status: 400 })
+    }
+
+    const domainIndex = mockDomains.findIndex((domain) => domain.id === id)
+
+    if (domainIndex === -1) {
+      return NextResponse.json({ error: "Domain not found" }, { status: 404 })
+    }
+
+    // Prevent deletion of primary domain
+    if (mockDomains[domainIndex].type === "primary") {
+      return NextResponse.json({ error: "Cannot delete primary domain" }, { status: 400 })
+    }
+
+    mockDomains.splice(domainIndex, 1)
+
+    return NextResponse.json({
+      success: true,
+      message: "Domain deleted successfully",
+    })
+  } catch (error) {
+    console.error("Delete domain error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -1,202 +1,104 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, ChevronDown } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Menu, X } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
 
-const navigation = [
-  { name: "Home", href: "/" },
-  {
-    name: "Services",
-    href: "/services",
-    submenu: [
-      { name: "Web Development", href: "/services/web-development" },
-      { name: "Mobile App Development", href: "/services/mobile-app-development" },
-      { name: "Custom Software", href: "/services/custom-software" },
-      { name: "CRM Solutions", href: "/services/crm-solutions" },
-    ],
-  },
-  { name: "Projects", href: "/projects" },
-  { name: "About", href: "/about" },
-  {
-    name: "Documentation",
-    href: "/docs",
-    submenu: [
-      { name: "Company History", href: "/docs/company-history" },
-      { name: "Mission & Values", href: "/docs/mission-values" },
-      { name: "Operational Procedures", href: "/docs/operational-procedures" },
-    ],
-  },
-  { name: "Team", href: "/team" },
-  { name: "Contact", href: "/contact" },
-]
-
 export default function Header() {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
-  const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true)
-      } else {
-        setIsScrolled(false)
-      }
-    }
-
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
-
-  const toggleSubmenu = (name: string) => {
-    if (openSubmenu === name) {
-      setOpenSubmenu(null)
-    } else {
-      setOpenSubmenu(name)
-    }
-  }
+  const navLinks = [
+    { href: "/", label: "Home" },
+    { href: "/about", label: "About" },
+    { href: "/services", label: "Services" },
+    { href: "/projects", label: "Projects" },
+    { href: "/team", label: "Team" },
+    { href: "/careers", label: "Careers" },
+    { href: "/api-docs", label: "API Docs" },
+    { href: "/cpanel", label: "cPanel" },
+    { href: "/webmail", label: "Webmail" },
+    { href: "/contact", label: "Contact" },
+  ]
 
   return (
-    <header
-      className={cn(
-        "fixed top-0 w-full z-50 transition-all duration-300",
-        isScrolled ? "bg-background/90 backdrop-blur-md border-b border-border shadow-lg" : "bg-transparent",
-      )}
-    >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <Image src="/images/logo.png" alt="Limitless Infotech" width={40} height={40} className="w-10 h-10" />
-              <div>
-                <p className="text-lg font-bold leading-none text-foreground">LIMITLESS INFOTECH</p>
-                <p className="text-xs text-muted-foreground">SOLUTION'S PVT LTD</p>
-              </div>
+    <header className="bg-dark-blue-900 text-foreground py-4 border-b border-dark-blue-700 sticky top-0 z-50 shadow-lg">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center space-x-3">
+          <Image src="/images/logo.png" alt="Limitless Infotech Solutions" width={40} height={40} />
+          <span className="text-2xl font-bold text-foreground hidden md:block">Limitless Infotech</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <nav className="hidden lg:flex items-center space-x-6">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-muted-foreground hover:text-primary transition-colors text-base font-medium"
+            >
+              {link.label}
             </Link>
-          </div>
+          ))}
+        </nav>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => (
-              <div key={item.name} className="relative group">
-                {item.submenu ? (
-                  <button
-                    onClick={() => toggleSubmenu(item.name)}
-                    className={cn(
-                      "flex items-center text-sm font-medium transition-colors hover:text-primary",
-                      pathname.startsWith(item.href) ? "text-primary" : "text-foreground",
-                    )}
-                  >
-                    {item.name}
-                    <ChevronDown className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180" />
-                  </button>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary",
-                      pathname === item.href ? "text-primary" : "text-foreground",
-                    )}
-                  >
-                    {item.name}
-                  </Link>
-                )}
+        {/* Actions & Mobile Menu Toggle */}
+        <div className="flex items-center space-x-4">
+          <Button asChild className="btn-gradient hidden md:inline-flex">
+            <Link href="/contact">Get a Quote</Link>
+          </Button>
+          <ThemeToggle />
 
-                {item.submenu && openSubmenu === item.name && (
-                  <div className="absolute left-0 mt-2 w-48 rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none animate-fade-in">
-                    <div className="py-1">
-                      {item.submenu.map((subitem) => (
-                        <Link
-                          key={subitem.name}
-                          href={subitem.href}
-                          className={cn(
-                            "block px-4 py-2 text-sm hover:bg-muted",
-                            pathname === subitem.href ? "text-primary" : "text-foreground",
-                          )}
-                        >
-                          {subitem.name}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <Button asChild className="hidden md:inline-flex btn-gradient">
-              <Link href="/contact">Get in Touch</Link>
-            </Button>
-
-            {/* Mobile menu button */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden text-foreground hover:bg-muted">
-                  <Menu className="h-6 w-6" />
-                  <span className="sr-only">Toggle menu</span>
+          {/* Mobile Menu Toggle */}
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild className="lg:hidden">
+              <Button variant="ghost" size="icon" className="text-foreground hover:bg-muted/20">
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Toggle navigation menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="right"
+              className="bg-dark-blue-800 border-dark-blue-700 text-foreground w-full sm:w-80 p-6"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <Link href="/" className="flex items-center space-x-3" onClick={() => setIsOpen(false)}>
+                  <Image src="/images/logo.png" alt="Limitless Infotech Solutions" width={32} height={32} />
+                  <span className="text-xl font-bold text-foreground">Limitless Infotech</span>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                  className="text-foreground hover:bg-muted/20"
+                >
+                  <X className="h-6 w-6" />
+                  <span className="sr-only">Close menu</span>
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background border-l border-border">
-                <nav className="flex flex-col gap-4 mt-8">
-                  {navigation.map((item) => (
-                    <div key={item.name}>
-                      {item.submenu ? (
-                        <>
-                          <button
-                            onClick={() => toggleSubmenu(item.name)}
-                            className="flex items-center justify-between w-full text-lg font-medium py-2 text-foreground hover:text-primary"
-                          >
-                            {item.name}
-                            <ChevronDown
-                              className={cn("h-5 w-5 transition-transform", openSubmenu === item.name && "rotate-180")}
-                            />
-                          </button>
-                          {openSubmenu === item.name && (
-                            <div className="ml-4 mt-2 flex flex-col space-y-2 animate-fade-in-up">
-                              {item.submenu.map((subitem) => (
-                                <Link
-                                  key={subitem.name}
-                                  href={subitem.href}
-                                  className={cn(
-                                    "text-sm hover:text-primary py-1",
-                                    pathname === subitem.href ? "text-primary font-medium" : "text-muted-foreground",
-                                  )}
-                                >
-                                  {subitem.name}
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "text-lg font-medium py-2 hover:text-primary",
-                            pathname === item.href ? "text-primary" : "text-foreground",
-                          )}
-                        >
-                          {item.name}
-                        </Link>
-                      )}
-                    </div>
-                  ))}
-                  <Button asChild className="mt-4 btn-gradient">
-                    <Link href="/contact">Get in Touch</Link>
-                  </Button>
-                </nav>
-              </SheetContent>
-            </Sheet>
-          </div>
+              </div>
+              <nav className="flex flex-col space-y-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="text-lg font-medium text-muted-foreground hover:text-primary transition-colors py-2"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                <Button asChild className="btn-gradient mt-4">
+                  <Link href="/contact" onClick={() => setIsOpen(false)}>
+                    Get a Quote
+                  </Link>
+                </Button>
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

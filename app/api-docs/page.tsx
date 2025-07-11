@@ -2,366 +2,755 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Code, Copy, Play, Book, Key, Globe, Zap } from "lucide-react"
+import { Code, Database, Mail, Shield, ArrowLeft, Copy, CheckCircle } from "lucide-react"
+import Link from "next/link"
+import Image from "next/image"
+import { useToast } from "@/hooks/use-toast"
 
-const apiEndpoints = [
+interface APIEndpoint {
+  method: "GET" | "POST" | "PUT" | "DELETE"
+  path: string
+  description: string
+  parameters?: { name: string; type: string; required: boolean; description: string }[]
+  response: string
+  example: string
+}
+
+const apiEndpoints: APIEndpoint[] = [
   {
-    method: "GET",
-    path: "/api/cpanel/users",
-    description: "Retrieve all users",
+    method: "POST",
+    path: "/api/contact",
+    description: "Submit a contact form inquiry",
     parameters: [
-      { name: "page", type: "number", description: "Page number for pagination" },
-      { name: "limit", type: "number", description: "Number of items per page" },
-      { name: "role", type: "string", description: "Filter by user role" },
+      { name: "firstName", type: "string", required: true, description: "First name of the contact" },
+      { name: "lastName", type: "string", required: true, description: "Last name of the contact" },
+      { name: "email", type: "string", required: true, description: "Email address" },
+      { name: "subject", type: "string", required: true, description: "Subject of the inquiry" },
+      { name: "message", type: "string", required: true, description: "Message content" },
     ],
-    response: {
-      success: true,
-      data: [
-        {
-          id: "1",
-          email: "admin@limitless.com",
-          name: "Admin User",
-          role: "admin",
-          created_at: "2024-01-10T00:00:00Z",
-        },
-      ],
-    },
+    response: "{ success: boolean, message: string, adminEmailId?: string, clientEmailId?: string }",
+    example: `{
+  "firstName": "John",
+  "lastName": "Doe", 
+  "email": "john@example.com",
+  "subject": "Project Inquiry",
+  "message": "I'm interested in your web development services."
+}`,
   },
   {
     method: "POST",
-    path: "/api/cpanel/domains",
-    description: "Create a new domain",
+    path: "/api/auth/login",
+    description: "Authenticate user and receive JWT token",
     parameters: [
-      { name: "domain", type: "string", description: "Domain name" },
-      { name: "type", type: "string", description: "Domain type (primary, addon, subdomain)" },
-      { name: "document_root", type: "string", description: "Document root path" },
+      { name: "email", type: "string", required: true, description: "User email address" },
+      { name: "password", type: "string", required: true, description: "User password" },
     ],
-    response: {
-      success: true,
-      data: {
-        id: "1",
-        domain: "example.com",
-        type: "addon",
-        status: "pending",
-      },
-    },
+    response: "{ success: boolean, token?: string, error?: string }",
+    example: `{
+  "email": "admin@example.com",
+  "password": "admin123"
+}`,
   },
   {
     method: "GET",
-    path: "/api/cpanel/analytics",
-    description: "Get system analytics",
+    path: "/api/cpanel/files",
+    description: "Retrieve files and folders from cPanel file manager",
     parameters: [
-      { name: "period", type: "string", description: "Time period (1d, 7d, 30d, 90d)" },
-      { name: "metric", type: "string", description: "Specific metric to retrieve" },
+      { name: "path", type: "string", required: false, description: "Directory path (default: /)" },
+      { name: "Authorization", type: "header", required: true, description: "Bearer token" },
     ],
-    response: {
-      success: true,
-      data: {
-        system: {
-          cpu: { current: 23, average: 18, peak: 45 },
-          memory: { current: 67, average: 62, peak: 89 },
-        },
-      },
-    },
+    response: "{ success: boolean, files: FileItem[], currentPath: string }",
+    example: `GET /api/cpanel/files?path=/public_html
+Authorization: Bearer <token>`,
+  },
+  {
+    method: "POST",
+    path: "/api/cpanel/files",
+    description: "Create files/folders or upload files",
+    parameters: [
+      { name: "action", type: "string", required: true, description: "Action: create, delete, or upload" },
+      { name: "name", type: "string", required: true, description: "File or folder name" },
+      { name: "path", type: "string", required: true, description: "Target path" },
+      { name: "type", type: "string", required: true, description: "Type: file or directory" },
+      { name: "Authorization", type: "header", required: true, description: "Bearer token" },
+    ],
+    response: "{ success: boolean, message: string, file?: FileItem }",
+    example: `{
+  "action": "create",
+  "name": "new-folder",
+  "path": "/public_html",
+  "type": "directory"
+}`,
+  },
+  {
+    method: "GET",
+    path: "/api/health",
+    description: "Health check endpoint for monitoring",
+    response: "{ status: string, timestamp: string, uptime: number }",
+    example: "GET /api/health",
   },
 ]
 
 export default function APIDocsPage() {
-  const [selectedEndpoint, setSelectedEndpoint] = useState(apiEndpoints[0])
-  const [apiKey, setApiKey] = useState("")
-  const [testResponse, setTestResponse] = useState("")
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const { toast } = useToast()
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedCode(id)
+      toast({ title: "Copied!", description: "Code copied to clipboard" })
+      setTimeout(() => setCopiedCode(null), 2000)
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to copy to clipboard", variant: "destructive" })
+    }
   }
 
-  const testEndpoint = async () => {
-    setTestResponse("Testing endpoint...")
-
-    // Simulate API call
-    setTimeout(() => {
-      setTestResponse(JSON.stringify(selectedEndpoint.response, null, 2))
-    }, 1000)
-  }
-
-  const generateCurlCommand = () => {
-    const headers = ['-H "Content-Type: application/json"', apiKey ? `-H "Authorization: Bearer ${apiKey}"` : ""]
-      .filter(Boolean)
-      .join(" ")
-
-    if (selectedEndpoint.method === "GET") {
-      return `curl -X GET "https://api.limitless.com${selectedEndpoint.path}" ${headers}`
-    } else {
-      return `curl -X ${selectedEndpoint.method} "https://api.limitless.com${selectedEndpoint.path}" ${headers} -d '${JSON.stringify({})}'`
+  const getMethodColor = (method: string) => {
+    switch (method) {
+      case "GET":
+        return "bg-accent-green/20 text-accent-green"
+      case "POST":
+        return "bg-accent-blue/20 text-accent-blue"
+      case "PUT":
+        return "bg-accent-orange/20 text-accent-orange"
+      case "DELETE":
+        return "bg-destructive/20 text-destructive"
+      default:
+        return "bg-muted/20 text-muted-foreground"
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4">Limitless API Documentation</h1>
-          <p className="text-xl text-gray-300">Complete API reference for Limitless CPanel and hosting services</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10 sticky top-6">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Book className="w-5 h-5" />
-                  <span>API Endpoints</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {apiEndpoints.map((endpoint, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedEndpoint(endpoint)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
-                      selectedEndpoint === endpoint
-                        ? "bg-blue-500/20 border border-blue-500/30"
-                        : "bg-white/5 hover:bg-white/10"
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Badge
-                        className={`${
-                          endpoint.method === "GET"
-                            ? "bg-green-500/20 text-green-300"
-                            : endpoint.method === "POST"
-                              ? "bg-blue-500/20 text-blue-300"
-                              : "bg-yellow-500/20 text-yellow-300"
-                        }`}
-                      >
-                        {endpoint.method}
-                      </Badge>
-                    </div>
-                    <div className="text-sm font-mono">{endpoint.path}</div>
-                    <div className="text-xs text-gray-400 mt-1">{endpoint.description}</div>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-dark-blue-900 text-foreground">
+      {/* Header */}
+      <header className="border-b border-dark-blue-700 p-4 bg-dark-blue-800">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Link href="/" className="flex items-center space-x-2 text-primary hover:text-primary/80">
+              <ArrowLeft className="w-5 h-5" />
+              <span>Back to Home</span>
+            </Link>
+            <div className="flex items-center space-x-3">
+              <Image src="/images/logo.png" alt="Limitless" width={32} height={32} />
+              <h1 className="text-2xl font-bold text-foreground">API Documentation</h1>
+            </div>
           </div>
+        </div>
+      </header>
 
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Endpoint Details */}
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <div className="flex items-center space-x-4">
-                  <Badge
-                    className={`${
-                      selectedEndpoint.method === "GET"
-                        ? "bg-green-500/20 text-green-300"
-                        : selectedEndpoint.method === "POST"
-                          ? "bg-blue-500/20 text-blue-300"
-                          : "bg-yellow-500/20 text-yellow-300"
-                    }`}
-                  >
-                    {selectedEndpoint.method}
-                  </Badge>
-                  <code className="text-lg font-mono">{selectedEndpoint.path}</code>
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Introduction */}
+        <Card className="custom-card mb-8">
+          <CardHeader>
+            <CardTitle className="text-foreground">Limitless Infotech API Documentation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Welcome to the Limitless Infotech Solutions API documentation. Our RESTful API provides programmatic
+              access to our platform's core functionality, including contact management, authentication, file
+              operations, and system monitoring.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg border border-border">
+                <Shield className="w-8 h-8 text-accent-blue" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Secure</h3>
+                  <p className="text-sm text-muted-foreground">JWT-based authentication</p>
                 </div>
-                <p className="text-gray-300">{selectedEndpoint.description}</p>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="parameters" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="parameters">Parameters</TabsTrigger>
-                    <TabsTrigger value="response">Response</TabsTrigger>
-                    <TabsTrigger value="examples">Examples</TabsTrigger>
-                    <TabsTrigger value="test">Test</TabsTrigger>
-                  </TabsList>
+              </div>
+              <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg border border-border">
+                <Code className="w-8 h-8 text-accent-green" />
+                <div>
+                  <h3 className="font-semibold text-foreground">RESTful</h3>
+                  <p className="text-sm text-muted-foreground">Standard HTTP methods</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg border border-border">
+                <Database className="w-8 h-8 text-accent-orange" />
+                <div>
+                  <h3 className="font-semibold text-foreground">JSON</h3>
+                  <p className="text-sm text-muted-foreground">JSON request/response format</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-                  <TabsContent value="parameters" className="space-y-4">
-                    <h3 className="text-lg font-semibold">Parameters</h3>
-                    {selectedEndpoint.parameters.length > 0 ? (
-                      <div className="space-y-3">
-                        {selectedEndpoint.parameters.map((param, index) => (
-                          <div key={index} className="p-3 bg-white/5 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <code className="font-mono text-sm">{param.name}</code>
-                              <Badge variant="outline" className="text-xs">
-                                {param.type}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-gray-400">{param.description}</p>
-                          </div>
-                        ))}
+        <Tabs defaultValue="endpoints" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 bg-card border-border rounded-lg p-1 mb-6">
+            <TabsTrigger
+              value="endpoints"
+              className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+            >
+              API Endpoints
+            </TabsTrigger>
+            <TabsTrigger
+              value="authentication"
+              className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+            >
+              Authentication
+            </TabsTrigger>
+            <TabsTrigger
+              value="examples"
+              className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+            >
+              Code Examples
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="endpoints" className="space-y-6">
+            {apiEndpoints.map((endpoint, index) => (
+              <Card
+                key={index}
+                className="custom-card animate-fade-in-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Badge className={getMethodColor(endpoint.method)}>{endpoint.method}</Badge>
+                      <code className="text-lg font-mono text-foreground">{endpoint.path}</code>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(endpoint.path, `path-${index}`)}
+                      className="hover:bg-muted/10"
+                    >
+                      {copiedCode === `path-${index}` ? (
+                        <CheckCircle className="w-4 h-4 text-accent-green" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-muted-foreground">{endpoint.description}</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {endpoint.parameters && (
+                    <div>
+                      <h4 className="font-semibold text-foreground mb-3">Parameters</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="border-b border-border/50">
+                            <tr className="text-left">
+                              <th className="p-2 font-medium table-header">Name</th>
+                              <th className="p-2 font-medium table-header">Type</th>
+                              <th className="p-2 font-medium table-header">Required</th>
+                              <th className="p-2 font-medium table-header">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {endpoint.parameters.map((param, paramIndex) => (
+                              <tr key={paramIndex} className="border-b border-border/30">
+                                <td className="p-2 font-mono text-accent-blue">{param.name}</td>
+                                <td className="p-2 text-muted-foreground">{param.type}</td>
+                                <td className="p-2">
+                                  <Badge
+                                    className={
+                                      param.required
+                                        ? "bg-destructive/20 text-destructive"
+                                        : "bg-muted/20 text-muted-foreground"
+                                    }
+                                  >
+                                    {param.required ? "Required" : "Optional"}
+                                  </Badge>
+                                </td>
+                                <td className="p-2 text-muted-foreground">{param.description}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    ) : (
-                      <p className="text-gray-400">No parameters required</p>
-                    )}
-                  </TabsContent>
+                    </div>
+                  )}
 
-                  <TabsContent value="response" className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">Response Format</h3>
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-3">Response</h4>
+                    <div className="relative">
+                      <pre className="bg-muted/20 p-4 rounded-lg border border-border overflow-x-auto">
+                        <code className="text-sm text-foreground">{endpoint.response}</code>
+                      </pre>
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(JSON.stringify(selectedEndpoint.response, null, 2))}
+                        variant="ghost"
+                        onClick={() => copyToClipboard(endpoint.response, `response-${index}`)}
+                        className="absolute top-2 right-2 hover:bg-muted/10"
                       >
-                        <Copy className="w-4 h-4 mr-2" />
-                        Copy
+                        {copiedCode === `response-${index}` ? (
+                          <CheckCircle className="w-4 h-4 text-accent-green" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </Button>
                     </div>
-                    <div className="bg-black rounded-lg p-4">
-                      <pre className="text-sm text-gray-300 overflow-x-auto">
-                        {JSON.stringify(selectedEndpoint.response, null, 2)}
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-3">Example Request</h4>
+                    <div className="relative">
+                      <pre className="bg-muted/20 p-4 rounded-lg border border-border overflow-x-auto">
+                        <code className="text-sm text-foreground">{endpoint.example}</code>
                       </pre>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="examples" className="space-y-4">
-                    <h3 className="text-lg font-semibold">Code Examples</h3>
-
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">cURL</h4>
-                          <Button size="sm" variant="outline" onClick={() => copyToClipboard(generateCurlCommand())}>
-                            <Copy className="w-4 h-4 mr-2" />
-                            Copy
-                          </Button>
-                        </div>
-                        <div className="bg-black rounded-lg p-4">
-                          <pre className="text-sm text-gray-300 overflow-x-auto">{generateCurlCommand()}</pre>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">JavaScript</h4>
-                          <Button size="sm" variant="outline">
-                            <Copy className="w-4 h-4 mr-2" />
-                            Copy
-                          </Button>
-                        </div>
-                        <div className="bg-black rounded-lg p-4">
-                          <pre className="text-sm text-gray-300 overflow-x-auto">
-                            {`const response = await fetch('https://api.limitless.com${selectedEndpoint.path}', {
-  method: '${selectedEndpoint.method}',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer your_api_key'
-  }
-});
-
-const data = await response.json();
-console.log(data);`}
-                          </pre>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium">Python</h4>
-                          <Button size="sm" variant="outline">
-                            <Copy className="w-4 h-4 mr-2" />
-                            Copy
-                          </Button>
-                        </div>
-                        <div className="bg-black rounded-lg p-4">
-                          <pre className="text-sm text-gray-300 overflow-x-auto">
-                            {`import requests
-
-headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer your_api_key'
-}
-
-response = requests.${selectedEndpoint.method.toLowerCase()}(
-    'https://api.limitless.com${selectedEndpoint.path}',
-    headers=headers
-)
-
-data = response.json()
-print(data)`}
-                          </pre>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="test" className="space-y-4">
-                    <h3 className="text-lg font-semibold">Test Endpoint</h3>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">API Key</label>
-                        <Input
-                          placeholder="Enter your API key"
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          className="bg-white/5 border-white/10"
-                        />
-                      </div>
-
-                      <Button onClick={testEndpoint} className="w-full">
-                        <Play className="w-4 h-4 mr-2" />
-                        Test Endpoint
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => copyToClipboard(endpoint.example, `example-${index}`)}
+                        className="absolute top-2 right-2 hover:bg-muted/10"
+                      >
+                        {copiedCode === `example-${index}` ? (
+                          <CheckCircle className="w-4 h-4 text-accent-green" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </Button>
-
-                      {testResponse && (
-                        <div>
-                          <h4 className="font-medium mb-2">Response</h4>
-                          <div className="bg-black rounded-lg p-4">
-                            <pre className="text-sm text-gray-300 overflow-x-auto">{testResponse}</pre>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
 
-            {/* Quick Start Guide */}
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <TabsContent value="authentication" className="space-y-6">
+            <Card className="custom-card">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Zap className="w-5 h-5" />
-                  <span>Quick Start Guide</span>
-                </CardTitle>
+                <CardTitle className="text-foreground">Authentication</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-white/5 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Key className="w-5 h-5 text-blue-400" />
-                      <h4 className="font-medium">1. Get API Key</h4>
-                    </div>
-                    <p className="text-sm text-gray-400">Generate an API key from your CPanel dashboard</p>
-                  </div>
+                <p className="text-muted-foreground">
+                  Our API uses JWT (JSON Web Tokens) for authentication. To access protected endpoints, you must include
+                  a valid JWT token in the Authorization header.
+                </p>
 
-                  <div className="p-4 bg-white/5 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Code className="w-5 h-5 text-green-400" />
-                      <h4 className="font-medium">2. Make Request</h4>
-                    </div>
-                    <p className="text-sm text-gray-400">Include your API key in the Authorization header</p>
-                  </div>
+                <div>
+                  <h4 className="font-semibold text-foreground mb-3">Getting a Token</h4>
+                  <div className="relative">
+                    <pre className="bg-muted/20 p-4 rounded-lg border border-border overflow-x-auto">
+                      <code className="text-sm text-foreground">{`POST /api/auth/login
+Content-Type: application/json
 
-                  <div className="p-4 bg-white/5 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Globe className="w-5 h-5 text-purple-400" />
-                      <h4 className="font-medium">3. Handle Response</h4>
-                    </div>
-                    <p className="text-sm text-gray-400">Process the JSON response in your application</p>
+{
+  "email": "your-email@example.com",
+  "password": "your-password"
+}
+
+Response:
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}`}</code>
+                    </pre>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        copyToClipboard(
+                          `POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "your-email@example.com",
+  "password": "your-password"
+}`,
+                          "auth-example",
+                        )
+                      }
+                      className="absolute top-2 right-2 hover:bg-muted/10"
+                    >
+                      {copiedCode === "auth-example" ? (
+                        <CheckCircle className="w-4 h-4 text-accent-green" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-foreground mb-3">Using the Token</h4>
+                  <div className="relative">
+                    <pre className="bg-muted/20 p-4 rounded-lg border border-border overflow-x-auto">
+                      <code className="text-sm text-foreground">{`GET /api/cpanel/files
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`}</code>
+                    </pre>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        copyToClipboard(
+                          `GET /api/cpanel/files
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`,
+                          "token-example",
+                        )
+                      }
+                      className="absolute top-2 right-2 hover:bg-muted/10"
+                    >
+                      {copiedCode === "token-example" ? (
+                        <CheckCircle className="w-4 h-4 text-accent-green" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-accent-orange/10 rounded-lg border border-accent-orange/20">
+                  <h4 className="font-semibold text-accent-orange mb-2">Important Notes</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Tokens expire after 7 days by default</li>
+                    <li>• Always use HTTPS in production</li>
+                    <li>• Store tokens securely (never in localStorage for sensitive apps)</li>
+                    <li>• Include the "Bearer " prefix in the Authorization header</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="examples" className="space-y-6">
+            <Card className="custom-card">
+              <CardHeader>
+                <CardTitle className="text-foreground">JavaScript/TypeScript Examples</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="font-semibold text-foreground mb-3">Contact Form Submission</h4>
+                  <div className="relative">
+                    <pre className="bg-muted/20 p-4 rounded-lg border border-border overflow-x-auto">
+                      <code className="text-sm text-foreground">{`async function submitContactForm(formData) {
+  try {
+    const response = await fetch('/api/contact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+    
+    if (data.success) {
+      console.log('Form submitted successfully!');
+      return data;
+    } else {
+      throw new Error(data.error || 'Submission failed');
+    }
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    throw error;
+  }
+}`}</code>
+                    </pre>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        copyToClipboard(
+                          `async function submitContactForm(formData) {
+  try {
+    const response = await fetch('/api/contact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+    
+    if (data.success) {
+      console.log('Form submitted successfully!');
+      return data;
+    } else {
+      throw new Error(data.error || 'Submission failed');
+    }
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    throw error;
+  }
+}`,
+                          "js-contact",
+                        )
+                      }
+                      className="absolute top-2 right-2 hover:bg-muted/10"
+                    >
+                      {copiedCode === "js-contact" ? (
+                        <CheckCircle className="w-4 h-4 text-accent-green" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-foreground mb-3">Authenticated File Operations</h4>
+                  <div className="relative">
+                    <pre className="bg-muted/20 p-4 rounded-lg border border-border overflow-x-auto">
+                      <code className="text-sm text-foreground">{`class LimitlessAPI {
+  constructor(token) {
+    this.token = token;
+    this.baseURL = '/api';
+  }
+
+  async getFiles(path = '/') {
+    const response = await fetch(\`\${this.baseURL}/cpanel/files?path=\${encodeURIComponent(path)}\`, {
+      headers: {
+        'Authorization': \`Bearer \${this.token}\`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(\`HTTP error! status: \${response.status}\`);
+    }
+
+    return await response.json();
+  }
+
+  async createFolder(name, path) {
+    const response = await fetch(\`\${this.baseURL}/cpanel/files\`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': \`Bearer \${this.token}\`,
+      },
+      body: JSON.stringify({
+        action: 'create',
+        name,
+        path,
+        type: 'directory',
+      }),
+    });
+
+    return await response.json();
+  }
+}
+
+// Usage
+const api = new LimitlessAPI('your-jwt-token');
+const files = await api.getFiles('/public_html');
+console.log(files);`}</code>
+                    </pre>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        copyToClipboard(
+                          `class LimitlessAPI {
+  constructor(token) {
+    this.token = token;
+    this.baseURL = '/api';
+  }
+
+  async getFiles(path = '/') {
+    const response = await fetch(\`\${this.baseURL}/cpanel/files?path=\${encodeURIComponent(path)}\`, {
+      headers: {
+        'Authorization': \`Bearer \${this.token}\`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(\`HTTP error! status: \${response.status}\`);
+    }
+
+    return await response.json();
+  }
+
+  async createFolder(name, path) {
+    const response = await fetch(\`\${this.baseURL}/cpanel/files\`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': \`Bearer \${this.token}\`,
+      },
+      body: JSON.stringify({
+        action: 'create',
+        name,
+        path,
+        type: 'directory',
+      }),
+    });
+
+    return await response.json();
+  }
+}
+
+// Usage
+const api = new LimitlessAPI('your-jwt-token');
+const files = await api.getFiles('/public_html');
+console.log(files);`,
+                          "js-files",
+                        )
+                      }
+                      className="absolute top-2 right-2 hover:bg-muted/10"
+                    >
+                      {copiedCode === "js-files" ? (
+                        <CheckCircle className="w-4 h-4 text-accent-green" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
+
+            <Card className="custom-card">
+              <CardHeader>
+                <CardTitle className="text-foreground">Python Examples</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="relative">
+                  <pre className="bg-muted/20 p-4 rounded-lg border border-border overflow-x-auto">
+                    <code className="text-sm text-foreground">{`import requests
+import json
+
+class LimitlessAPI:
+    def __init__(self, token, base_url="https://your-domain.com/api"):
+        self.token = token
+        self.base_url = base_url
+        self.headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+    def submit_contact_form(self, form_data):
+        """Submit a contact form"""
+        url = f"{self.base_url}/contact"
+        response = requests.post(url, json=form_data)
+        return response.json()
+
+    def get_files(self, path="/"):
+        """Get files from cPanel file manager"""
+        url = f"{self.base_url}/cpanel/files"
+        params = {"path": path}
+        response = requests.get(url, headers=self.headers, params=params)
+        return response.json()
+
+    def create_folder(self, name, path):
+        """Create a new folder"""
+        url = f"{self.base_url}/cpanel/files"
+        data = {
+            "action": "create",
+            "name": name,
+            "path": path,
+            "type": "directory"
+        }
+        response = requests.post(url, headers=self.headers, json=data)
+        return response.json()
+
+# Usage example
+api = LimitlessAPI("your-jwt-token")
+
+# Submit contact form
+contact_data = {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@example.com",
+    "subject": "API Inquiry",
+    "message": "I'm interested in your API services."
+}
+result = api.submit_contact_form(contact_data)
+print(result)`}</code>
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      copyToClipboard(
+                        `import requests
+import json
+
+class LimitlessAPI:
+    def __init__(self, token, base_url="https://your-domain.com/api"):
+        self.token = token
+        self.base_url = base_url
+        self.headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+    def submit_contact_form(self, form_data):
+        """Submit a contact form"""
+        url = f"{self.base_url}/contact"
+        response = requests.post(url, json=form_data)
+        return response.json()
+
+    def get_files(self, path="/"):
+        """Get files from cPanel file manager"""
+        url = f"{self.base_url}/cpanel/files"
+        params = {"path": path}
+        response = requests.get(url, headers=self.headers, params=params)
+        return response.json()
+
+    def create_folder(self, name, path):
+        """Create a new folder"""
+        url = f"{self.base_url}/cpanel/files"
+        data = {
+            "action": "create",
+            "name": name,
+            "path": path,
+            "type": "directory"
+        }
+        response = requests.post(url, headers=self.headers, json=data)
+        return response.json()
+
+# Usage example
+api = LimitlessAPI("your-jwt-token")
+
+# Submit contact form
+contact_data = {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@example.com",
+    "subject": "API Inquiry",
+    "message": "I'm interested in your API services."
+}
+result = api.submit_contact_form(contact_data)
+print(result)`,
+                        "python-example",
+                      )
+                    }
+                    className="absolute top-2 right-2 hover:bg-muted/10"
+                  >
+                    {copiedCode === "python-example" ? (
+                      <CheckCircle className="w-4 h-4 text-accent-green" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Support Section */}
+        <Card className="custom-card mt-8">
+          <CardHeader>
+            <CardTitle className="text-foreground">Need Help?</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              If you have questions about our API or need assistance with integration, our team is here to help.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Button asChild className="btn-gradient">
+                <Link href="/contact">Contact Support</Link>
+              </Button>
+              <Button asChild variant="outline" className="btn-outline-primary bg-transparent">
+                <Link href="mailto:api-support@limitless.com">
+                  <Mail className="w-4 h-4 mr-2" />
+                  Email API Support
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

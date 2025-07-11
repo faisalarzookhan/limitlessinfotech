@@ -1,117 +1,69 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { AuthService } from "@/lib/auth"
-import { validateRequest } from "@/lib/validation"
-import { z } from "zod"
+import { NextResponse } from "next/server"
 
-const createSubdomainSchema = z.object({
-  subdomain: z.string().min(1),
-  domain: z.string().min(3),
-  document_root: z.string(),
-  ssl_enabled: z.boolean().default(true),
-})
-
-const mockSubdomains = [
+// Mock data for subdomains
+let mockSubdomains = [
   {
-    id: "1",
-    subdomain: "api",
-    domain: "limitless.com",
-    full_domain: "api.limitless.com",
-    document_root: "/public_html/api",
-    ssl_enabled: true,
-    status: "active",
-    created_at: "2024-01-10T00:00:00Z",
+    id: "sub_1",
+    name: "blog",
+    domain: "limitlessinfotech.com",
+    fullDomain: "blog.limitlessinfotech.com",
+    documentRoot: "/public_html/blog",
+    created: "2023-02-01",
   },
   {
-    id: "2",
-    subdomain: "blog",
-    domain: "limitless.com",
-    full_domain: "blog.limitless.com",
-    document_root: "/public_html/blog",
-    ssl_enabled: true,
-    status: "active",
-    created_at: "2024-01-12T00:00:00Z",
+    id: "sub_2",
+    name: "dev",
+    domain: "limitlessinfotech.com",
+    fullDomain: "dev.limitlessinfotech.com",
+    documentRoot: "/public_html/dev",
+    created: "2023-04-10",
+  },
+  {
+    id: "sub_3",
+    name: "app",
+    domain: "clientportal.net",
+    fullDomain: "app.clientportal.net",
+    documentRoot: "/public_html/app",
+    created: "2023-07-15",
   },
 ]
 
-export async function GET(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
-    }
-
-    const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const domain = searchParams.get("domain")
-
-    let subdomains = mockSubdomains
-
-    if (domain) {
-      subdomains = subdomains.filter((s) => s.domain === domain)
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: subdomains,
-    })
-  } catch (error) {
-    console.error("Get subdomains error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
+export async function GET() {
+  return NextResponse.json({ success: true, subdomains: mockSubdomains })
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
+export async function POST(request: Request) {
+  const { action, name, domain, documentRoot, id } = await request.json()
+
+  if (action === "create") {
+    if (!name || !domain || !documentRoot) {
+      return NextResponse.json(
+        { success: false, error: "Subdomain name, domain, and document root are required" },
+        { status: 400 },
+      )
     }
-
-    const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const validation = validateRequest(createSubdomainSchema, body)
-
-    if (!validation.success) {
-      return NextResponse.json({ error: "Validation failed", details: validation.errors }, { status: 400 })
-    }
-
-    // Simulate subdomain creation
     const newSubdomain = {
-      id: Date.now().toString(),
-      ...validation.data,
-      full_domain: `${validation.data.subdomain}.${validation.data.domain}`,
-      status: "pending",
-      created_at: new Date().toISOString(),
-      created_by: user.id,
+      id: `sub_${Date.now()}`,
+      name,
+      domain,
+      fullDomain: `${name}.${domain}`,
+      documentRoot,
+      created: new Date().toISOString().split("T")[0],
     }
-
-    // Simulate DNS record creation
-    setTimeout(() => {
-      console.log(`DNS records created for ${newSubdomain.full_domain}`)
-    }, 1000)
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: newSubdomain,
-        message: "Subdomain created successfully",
-      },
-      { status: 201 },
-    )
-  } catch (error) {
-    console.error("Create subdomain error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    mockSubdomains.push(newSubdomain)
+    return NextResponse.json({ success: true, message: "Subdomain created successfully.", subdomain: newSubdomain })
+  } else if (action === "delete") {
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Subdomain ID is required" }, { status: 400 })
+    }
+    const initialLength = mockSubdomains.length
+    mockSubdomains = mockSubdomains.filter((sub) => sub.id !== id)
+    if (mockSubdomains.length < initialLength) {
+      return NextResponse.json({ success: true, message: "Subdomain deleted successfully." })
+    } else {
+      return NextResponse.json({ success: false, error: "Subdomain not found" }, { status: 404 })
+    }
+  } else {
+    return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 })
   }
 }

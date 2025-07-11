@@ -1,34 +1,43 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { AuthService } from "@/lib/auth"
 
-const mockFiles = [
+// Mock data for files
+let mockFiles = [
   {
-    id: "1",
-    name: "public_html",
-    type: "folder",
-    size: null,
-    modified: "2024-01-15T10:30:00Z",
-    permissions: "755",
-    path: "/home/limitless/public_html",
-  },
-  {
-    id: "2",
+    id: "file_1",
     name: "index.html",
+    path: "/public_html/index.html",
+    size: "10 KB",
     type: "file",
-    size: 2400,
-    modified: "2024-01-15T14:22:00Z",
-    permissions: "644",
-    path: "/home/limitless/public_html/index.html",
+    lastModified: "2024-07-10",
   },
   {
-    id: "3",
-    name: "style.css",
+    id: "file_2",
+    name: "styles.css",
+    path: "/public_html/css/styles.css",
+    size: "5 KB",
     type: "file",
-    size: 15700,
-    modified: "2024-01-15T11:18:00Z",
-    permissions: "644",
-    path: "/home/limitless/public_html/style.css",
+    lastModified: "2024-07-09",
   },
+  {
+    id: "file_3",
+    name: "images",
+    path: "/public_html/images",
+    size: "20 MB",
+    type: "directory",
+    lastModified: "2024-07-08",
+  },
+  {
+    id: "file_4",
+    name: "script.js",
+    path: "/public_html/js/script.js",
+    size: "8 KB",
+    type: "file",
+    lastModified: "2024-07-10",
+  },
+  { id: "file_5", name: "public_html", path: "/", size: "30 MB", type: "directory", lastModified: "2024-07-10" },
+  { id: "file_6", name: "css", path: "/public_html", size: "10 KB", type: "directory", lastModified: "2024-07-09" },
+  { id: "file_7", name: "js", path: "/public_html", size: "15 KB", type: "directory", lastModified: "2024-07-10" },
 ]
 
 export async function GET(request: NextRequest) {
@@ -46,20 +55,46 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const path = searchParams.get("path") || "/home/limitless"
-    const type = searchParams.get("type") // 'file' or 'folder'
+    const path = searchParams.get("path") || "/"
 
-    let files = mockFiles
+    const currentDirectoryFiles = mockFiles
+      .filter((file) => {
+        // For root path, show only top-level items (e.g., public_html)
+        if (path === "/") {
+          return file.path === "/" || file.path.startsWith(`/${file.name}`)
+        }
+        // For sub-directories, show items directly within that path
+        return (
+          file.path === path ||
+          (file.path.startsWith(`${path}/`) &&
+            file.path.split("/").filter(Boolean).length === path.split("/").filter(Boolean).length + 1)
+        )
+      })
+      .map((file) => {
+        // Adjust name for display if it's a direct child of the current path
+        if (file.path !== path && file.path.startsWith(path)) {
+          const parts = file.path.split("/").filter(Boolean)
+          const pathParts = path.split("/").filter(Boolean)
+          if (parts.length === pathParts.length + 1) {
+            return { ...file, name: parts[parts.length - 1] }
+          }
+        }
+        return file
+      })
 
-    if (type) {
-      files = files.filter((f) => f.type === type)
+    // Add a ".." entry for navigating up, if not at root
+    if (path !== "/") {
+      currentDirectoryFiles.unshift({
+        id: "parent",
+        name: "..",
+        path: path.substring(0, path.lastIndexOf("/")) || "/",
+        size: "",
+        type: "directory",
+        lastModified: "",
+      })
     }
 
-    return NextResponse.json({
-      success: true,
-      data: files,
-      path: path,
-    })
+    return NextResponse.json({ success: true, files: currentDirectoryFiles, currentPath: path })
   } catch (error) {
     console.error("Get files error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -80,33 +115,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { name, type, path, content } = body
+    const { action, name, path, type, id } = await request.json()
 
-    if (!name || !type || !path) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (action === "create") {
+      if (!name || !path || !type) {
+        return NextResponse.json({ success: false, error: "Name, path, and type are required" }, { status: 400 })
+      }
+      const newFile = {
+        id: `file_${Date.now()}`,
+        name,
+        path: `${path === "/" ? "" : path}/${name}`,
+        size: type === "directory" ? "0 KB" : "0 KB",
+        type,
+        lastModified: new Date().toISOString().split("T")[0],
+      }
+      mockFiles.push(newFile)
+      return NextResponse.json({ success: true, message: `${type} created successfully.`, file: newFile })
+    } else if (action === "delete") {
+      if (!id) {
+        return NextResponse.json({ success: false, error: "File ID is required" }, { status: 400 })
+      }
+      const initialLength = mockFiles.length
+      mockFiles = mockFiles.filter((file) => file.id !== id)
+      if (mockFiles.length < initialLength) {
+        return NextResponse.json({ success: true, message: "File deleted successfully." })
+      } else {
+        return NextResponse.json({ success: false, error: "File not found" }, { status: 404 })
+      }
+    } else if (action === "upload") {
+      // This would typically handle FormData, but for mock, we'll just simulate
+      if (!name || !path) {
+        return NextResponse.json(
+          { success: false, error: "File name and path are required for upload" },
+          { status: 400 },
+        )
+      }
+      const uploadedFile = {
+        id: `file_${Date.now()}`,
+        name,
+        path: `${path === "/" ? "" : path}/${name}`,
+        size: "1.5 MB", // Mock size
+        type: "file",
+        lastModified: new Date().toISOString().split("T")[0],
+      }
+      mockFiles.push(uploadedFile)
+      return NextResponse.json({ success: true, message: "File uploaded successfully.", file: uploadedFile })
+    } else {
+      return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 })
     }
-
-    // Simulate file/folder creation
-    const newItem = {
-      id: Date.now().toString(),
-      name,
-      type,
-      size: type === "file" ? content?.length || 0 : null,
-      modified: new Date().toISOString(),
-      permissions: type === "folder" ? "755" : "644",
-      path: `${path}/${name}`,
-      created_by: user.id,
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: newItem,
-        message: `${type === "folder" ? "Folder" : "File"} created successfully`,
-      },
-      { status: 201 },
-    )
   } catch (error) {
     console.error("Create file/folder error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -1,12 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 import {
   Globe,
   Zap,
@@ -19,6 +22,10 @@ import {
   Clock,
   TrendingUp,
   Gauge,
+  Cloud,
+  Loader2,
+  CheckCircle,
+  XCircle,
 } from "lucide-react"
 import {
   LineChart,
@@ -60,6 +67,15 @@ interface EdgeLocation {
   status: "online" | "offline" | "maintenance"
   latency: number
   requests: number
+}
+
+interface CdnSetting {
+  id: string
+  domain: string
+  status: "active" | "inactive" | "deploying"
+  cacheLevel: "standard" | "aggressive" | "bypass"
+  sslEnabled: boolean
+  lastPurged: string
 }
 
 const mockZones: CDNZone[] = [
@@ -132,10 +148,29 @@ const mockEdgeLocations: EdgeLocation[] = [
 ]
 
 const cacheTypeData = [
-  { name: "Static Assets", value: 65, color: "#3B82F6" },
-  { name: "API Responses", value: 20, color: "#10B981" },
-  { name: "Images", value: 10, color: "#F59E0B" },
-  { name: "Other", value: 5, color: "#8B5CF6" },
+  { name: "Static Assets", value: 65, color: "hsl(var(--accent-blue))" },
+  { name: "API Responses", value: 20, color: "hsl(var(--accent-green))" },
+  { name: "Images", value: 10, color: "hsl(var(--accent-orange))" },
+  { name: "Other", value: 5, color: "hsl(var(--accent-purple))" },
+]
+
+const mockCdnSettings: CdnSetting[] = [
+  {
+    id: "cdn_1",
+    domain: "limitlessinfotech.com",
+    status: "active",
+    cacheLevel: "standard",
+    sslEnabled: true,
+    lastPurged: "2024-07-10T10:00:00Z",
+  },
+  {
+    id: "cdn_2",
+    domain: "blog.limitlessinfotech.com",
+    status: "inactive",
+    cacheLevel: "bypass",
+    sslEnabled: false,
+    lastPurged: "Never",
+  },
 ]
 
 export default function CDNManager() {
@@ -143,6 +178,10 @@ export default function CDNManager() {
   const [stats, setStats] = useState<CDNStats[]>(mockStats)
   const [edgeLocations, setEdgeLocations] = useState<EdgeLocation[]>(mockEdgeLocations)
   const [newZoneForm, setNewZoneForm] = useState({ domain: "", origin: "" })
+  const [cdnSettings, setCdnSettings] = useState<CdnSetting[]>(mockCdnSettings)
+  const [newDomain, setNewDomain] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
 
   const createZone = () => {
     if (newZoneForm.domain.trim() && newZoneForm.origin.trim()) {
@@ -161,20 +200,113 @@ export default function CDNManager() {
     }
   }
 
+  const handleAddDomain = async () => {
+    if (!newDomain.trim()) {
+      toast({ title: "Error", description: "Please enter a domain name.", variant: "destructive" })
+      return
+    }
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      const addedDomain: CdnSetting = {
+        id: `cdn_${Date.now()}`,
+        domain: newDomain.trim(),
+        status: "deploying",
+        cacheLevel: "standard",
+        sslEnabled: false,
+        lastPurged: "Never",
+      }
+      setCdnSettings((prev) => [...prev, addedDomain])
+      setNewDomain("")
+      toast({ title: "Success!", description: "Domain added to CDN. Deployment in progress." })
+
+      // Simulate deployment completion
+      setTimeout(() => {
+        setCdnSettings((prev) =>
+          prev.map((setting) => (setting.id === addedDomain.id ? { ...setting, status: "active" } : setting)),
+        )
+        toast({ title: "CDN Ready!", description: `${addedDomain.domain} is now active on CDN.` })
+      }, 5000)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add domain to CDN.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleToggleStatus = async (id: string, currentStatus: "active" | "inactive" | "deploying") => {
+    if (currentStatus === "deploying") return // Cannot toggle while deploying
+    setIsLoading(true)
+    try {
+      const newStatus = currentStatus === "active" ? "inactive" : "active"
+      // Simulate API call
+      setCdnSettings((prev) => prev.map((setting) => (setting.id === id ? { ...setting, status: newStatus } : setting)))
+      toast({ title: "Success!", description: `CDN for domain status changed to ${newStatus}.` })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update CDN status.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePurgeCache = async (id: string) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      setCdnSettings((prev) =>
+        prev.map((setting) => (setting.id === id ? { ...setting, lastPurged: new Date().toISOString() } : setting)),
+      )
+      toast({ title: "Success!", description: "CDN cache purged successfully." })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to purge CDN cache.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleUpdateSetting = async (id: string, field: keyof CdnSetting, value: any) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      setCdnSettings((prev) => prev.map((setting) => (setting.id === id ? { ...setting, [field]: value } : setting)))
+      toast({ title: "Success!", description: "CDN setting updated." })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update CDN setting.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
       case "online":
-        return "bg-green-500/20 text-green-300"
+        return "bg-accent-green/20 text-accent-green"
       case "pending":
-        return "bg-yellow-500/20 text-yellow-300"
+        return "bg-accent-orange/20 text-accent-orange"
       case "disabled":
       case "offline":
-        return "bg-red-500/20 text-red-300"
+        return "bg-destructive/20 text-destructive"
       case "maintenance":
-        return "bg-blue-500/20 text-blue-300"
+        return "bg-accent-blue/20 text-accent-blue"
       default:
-        return "bg-gray-500/20 text-gray-300"
+        return "bg-muted/20 text-muted-foreground"
     }
   }
 
@@ -185,112 +317,151 @@ export default function CDNManager() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      <Card className="custom-card">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Globe className="w-5 h-5" />
+          <CardTitle className="flex items-center space-x-2 text-foreground">
+            <Globe className="w-5 h-5 text-primary" />
             <span>CDN Manager</span>
           </CardTitle>
         </CardHeader>
       </Card>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 bg-white/5 border-white/10">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="zones">Zones</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="edge">Edge Locations</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-card border-border rounded-lg p-1 mb-6">
+          <TabsTrigger
+            value="overview"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="zones"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Zones
+          </TabsTrigger>
+          <TabsTrigger
+            value="analytics"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger
+            value="edge"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Edge Locations
+          </TabsTrigger>
+          <TabsTrigger
+            value="settings"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Settings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
           {/* CDN Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardContent className="p-6 text-center">
-                  <Zap className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                  <h3 className="text-2xl font-bold text-blue-400">{zones.length}</h3>
-                  <p className="text-gray-400 text-sm">Active Zones</p>
-                </CardContent>
-              </Card>
-            </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="custom-card animate-fade-in-up">
+              <CardContent className="p-6 text-center">
+                <Zap className="w-8 h-8 text-accent-blue mx-auto mb-2" />
+                <h3 className="text-2xl font-bold text-accent-blue">{zones.length}</h3>
+                <p className="text-muted-foreground text-sm">Active Zones</p>
+              </CardContent>
+            </div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardContent className="p-6 text-center">
-                  <BarChart3 className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                  <h3 className="text-2xl font-bold text-green-400">{(totalRequests / 1000000).toFixed(1)}M</h3>
-                  <p className="text-gray-400 text-sm">Total Requests</p>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <div className="custom-card animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+              <CardContent className="p-6 text-center">
+                <BarChart3 className="w-8 h-8 text-accent-green mx-auto mb-2" />
+                <h3 className="text-2xl font-bold text-accent-green">{(totalRequests / 1000000).toFixed(1)}M</h3>
+                <p className="text-muted-foreground text-sm">Total Requests</p>
+              </CardContent>
+            </div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardContent className="p-6 text-center">
-                  <TrendingUp className="w-8 h-8 text-orange-400 mx-auto mb-2" />
-                  <h3 className="text-2xl font-bold text-orange-400">{totalBandwidth.toFixed(1)} TB</h3>
-                  <p className="text-gray-400 text-sm">Bandwidth Used</p>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <div className="custom-card animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+              <CardContent className="p-6 text-center">
+                <TrendingUp className="w-8 h-8 text-accent-orange mx-auto mb-2" />
+                <h3 className="text-2xl font-bold text-accent-orange">{totalBandwidth.toFixed(1)} TB</h3>
+                <p className="text-muted-foreground text-sm">Bandwidth Used</p>
+              </CardContent>
+            </div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardContent className="p-6 text-center">
-                  <Gauge className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                  <h3 className="text-2xl font-bold text-purple-400">{avgCacheHitRatio.toFixed(1)}%</h3>
-                  <p className="text-gray-400 text-sm">Cache Hit Ratio</p>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <div className="custom-card animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
+              <CardContent className="p-6 text-center">
+                <Gauge className="w-8 h-8 text-accent-purple mx-auto mb-2" />
+                <h3 className="text-2xl font-bold text-accent-purple">{avgCacheHitRatio.toFixed(1)}%</h3>
+                <p className="text-muted-foreground text-sm">Cache Hit Ratio</p>
+              </CardContent>
+            </div>
           </div>
 
           {/* Performance Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+            <Card className="custom-card">
               <CardHeader>
-                <CardTitle>Request Volume</CardTitle>
+                <CardTitle className="text-foreground">Request Volume</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={stats}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="timestamp" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="timestamp" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#1F2937",
-                        border: "1px solid #374151",
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
                         borderRadius: "8px",
                       }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                     />
-                    <Line type="monotone" dataKey="requests" stroke="#3B82F6" strokeWidth={2} name="Requests" />
+                    <Line
+                      type="monotone"
+                      dataKey="requests"
+                      stroke="hsl(var(--accent-blue))"
+                      strokeWidth={2}
+                      name="Requests"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+            <Card className="custom-card">
               <CardHeader>
-                <CardTitle>Cache Performance</CardTitle>
+                <CardTitle className="text-foreground">Cache Performance</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={stats}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="timestamp" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="timestamp" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#1F2937",
-                        border: "1px solid #374151",
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
                         borderRadius: "8px",
                       }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                     />
-                    <Line type="monotone" dataKey="cacheHit" stroke="#10B981" strokeWidth={2} name="Cache Hit %" />
-                    <Line type="monotone" dataKey="latency" stroke="#F59E0B" strokeWidth={2} name="Latency (ms)" />
+                    <Line
+                      type="monotone"
+                      dataKey="cacheHit"
+                      stroke="hsl(var(--accent-green))"
+                      strokeWidth={2}
+                      name="Cache Hit %"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="latency"
+                      stroke="hsl(var(--accent-orange))"
+                      strokeWidth={2}
+                      name="Latency (ms)"
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -298,9 +469,9 @@ export default function CDNManager() {
           </div>
 
           {/* Cache Distribution */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Cache Distribution by Content Type</CardTitle>
+              <CardTitle className="text-foreground">Cache Distribution by Content Type</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center">
@@ -319,7 +490,15 @@ export default function CDNManager() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -329,9 +508,9 @@ export default function CDNManager() {
 
         <TabsContent value="zones" className="space-y-6">
           {/* Create Zone */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Create CDN Zone</CardTitle>
+              <CardTitle className="text-foreground">Create CDN Zone</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -339,18 +518,15 @@ export default function CDNManager() {
                   placeholder="Domain (e.g., example.com)"
                   value={newZoneForm.domain}
                   onChange={(e) => setNewZoneForm((prev) => ({ ...prev, domain: e.target.value }))}
-                  className="bg-white/5 border-white/10"
+                  className="input-field"
                 />
                 <Input
                   placeholder="Origin server (IP or domain)"
                   value={newZoneForm.origin}
                   onChange={(e) => setNewZoneForm((prev) => ({ ...prev, origin: e.target.value }))}
-                  className="bg-white/5 border-white/10"
+                  className="input-field"
                 />
-                <Button
-                  onClick={createZone}
-                  className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
-                >
+                <Button onClick={createZone} className="btn-gradient">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Zone
                 </Button>
@@ -359,68 +535,66 @@ export default function CDNManager() {
           </Card>
 
           {/* Zones List */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>CDN Zones</CardTitle>
+              <CardTitle className="text-foreground">CDN Zones</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="border-b border-white/10">
+                  <thead className="border-b border-border/50">
                     <tr className="text-left">
-                      <th className="p-4 font-medium">Domain</th>
-                      <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Origin</th>
-                      <th className="p-4 font-medium">Cache Hit Ratio</th>
-                      <th className="p-4 font-medium">Bandwidth</th>
-                      <th className="p-4 font-medium">Requests</th>
-                      <th className="p-4 font-medium">Actions</th>
+                      <th className="p-4 font-medium table-header">Domain</th>
+                      <th className="p-4 font-medium table-header">Status</th>
+                      <th className="p-4 font-medium table-header">Origin</th>
+                      <th className="p-4 font-medium table-header">Cache Hit Ratio</th>
+                      <th className="p-4 font-medium table-header">Bandwidth</th>
+                      <th className="p-4 font-medium table-header">Requests</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {zones.map((zone, index) => (
-                      <motion.tr
+                      <tr
                         key={zone.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="border-b border-white/5 hover:bg-white/5"
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
                       >
-                        <td className="p-4 font-medium">{zone.domain}</td>
+                        <td className="p-4 font-medium text-foreground">{zone.domain}</td>
                         <td className="p-4">
                           <Badge className={getStatusColor(zone.status)}>{zone.status}</Badge>
                         </td>
-                        <td className="p-4 text-gray-400 font-mono text-sm">{zone.origin}</td>
+                        <td className="p-4 text-muted-foreground font-mono text-sm">{zone.origin}</td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <div className="w-16 bg-gray-700 rounded-full h-2">
+                            <div className="w-16 bg-muted rounded-full h-2">
                               <div
-                                className="bg-green-500 h-2 rounded-full"
+                                className="bg-accent-green h-2 rounded-full"
                                 style={{ width: `${zone.cacheHitRatio}%` }}
                               />
                             </div>
-                            <span className="text-sm">{zone.cacheHitRatio}%</span>
+                            <span className="text-sm text-muted-foreground">{zone.cacheHitRatio}%</span>
                           </div>
                         </td>
-                        <td className="p-4 text-gray-400">{zone.bandwidth}</td>
-                        <td className="p-4 text-gray-400">{(zone.requests / 1000).toFixed(0)}K</td>
+                        <td className="p-4 text-muted-foreground">{zone.bandwidth}</td>
+                        <td className="p-4 text-muted-foreground">{(zone.requests / 1000).toFixed(0)}K</td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <BarChart3 className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <Settings className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <RefreshCw className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-red-500/10 text-red-400">
+                            <Button size="sm" variant="ghost" className="hover:bg-destructive/10 text-destructive">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -430,112 +604,81 @@ export default function CDNManager() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle>Bandwidth Usage</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={stats}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="timestamp" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1F2937",
-                        border: "1px solid #374151",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Line type="monotone" dataKey="bandwidth" stroke="#8B5CF6" strokeWidth={2} name="Bandwidth (GB)" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-              <CardHeader>
-                <CardTitle>Response Time</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={stats}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="timestamp" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1F2937",
-                        border: "1px solid #374151",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Line type="monotone" dataKey="latency" stroke="#F59E0B" strokeWidth={2} name="Latency (ms)" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+          {/* CDN Analytics (Placeholder) */}
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-foreground">
+                <Zap className="w-5 h-5 text-primary" />
+                <span>CDN Analytics</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                View detailed analytics on CDN performance, traffic, and cache hit ratio. (Feature coming soon)
+              </p>
+              <Button className="btn-outline-primary mt-4" disabled>
+                <Zap className="w-4 h-4 mr-2" /> View Analytics
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="edge" className="space-y-6">
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          {/* Edge Locations */}
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Edge Locations</CardTitle>
+              <CardTitle className="text-foreground">Edge Locations</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="border-b border-white/10">
+                  <thead className="border-b border-border/50">
                     <tr className="text-left">
-                      <th className="p-4 font-medium">Location</th>
-                      <th className="p-4 font-medium">Region</th>
-                      <th className="p-4 font-medium">Status</th>
-                      <th className="p-4 font-medium">Latency</th>
-                      <th className="p-4 font-medium">Requests</th>
-                      <th className="p-4 font-medium">Actions</th>
+                      <th className="p-4 font-medium table-header">Location</th>
+                      <th className="p-4 font-medium table-header">Region</th>
+                      <th className="p-4 font-medium table-header">Status</th>
+                      <th className="p-4 font-medium table-header">Latency</th>
+                      <th className="p-4 font-medium table-header">Requests</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {edgeLocations.map((location, index) => (
-                      <motion.tr
+                      <tr
                         key={location.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="border-b border-white/5 hover:bg-white/5"
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
                       >
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <MapPin className="w-4 h-4 text-blue-400" />
-                            <span className="font-medium">
+                            <MapPin className="w-4 h-4 text-accent-blue" />
+                            <span className="font-medium text-foreground">
                               {location.city}, {location.country}
                             </span>
                           </div>
                         </td>
-                        <td className="p-4 text-gray-400">{location.region}</td>
+                        <td className="p-4 text-muted-foreground">{location.region}</td>
                         <td className="p-4">
                           <Badge className={getStatusColor(location.status)}>{location.status}</Badge>
                         </td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Clock className="w-4 h-4 text-green-400" />
-                            <span>{location.latency}ms</span>
+                            <Clock className="w-4 h-4 text-accent-green" />
+                            <span className="text-muted-foreground">{location.latency}ms</span>
                           </div>
                         </td>
-                        <td className="p-4 text-gray-400">{(location.requests / 1000).toFixed(0)}K</td>
+                        <td className="p-4 text-muted-foreground">{(location.requests / 1000).toFixed(0)}K</td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <BarChart3 className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <Settings className="w-4 h-4" />
                             </Button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -545,50 +688,161 @@ export default function CDNManager() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          {/* Managed CDN Domains */}
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>CDN Settings</CardTitle>
+              <CardTitle className="flex items-center space-x-2 text-foreground">
+                <Cloud className="w-5 h-5 text-primary" />
+                <span>Managed CDN Domains</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Auto-purge cache</h3>
-                  <p className="text-sm text-gray-400">Automatically purge cache when origin content changes</p>
-                </div>
-                <Button className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30">Enabled</Button>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-border/50">
+                    <tr className="text-left">
+                      <th className="p-4 font-medium table-header">Domain</th>
+                      <th className="p-4 font-medium table-header">Status</th>
+                      <th className="p-4 font-medium table-header">Cache Level</th>
+                      <th className="p-4 font-medium table-header">SSL</th>
+                      <th className="p-4 font-medium table-header">Last Purged</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cdnSettings.length === 0 && !isLoading ? (
+                      <tr>
+                        <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                          No domains configured for CDN.
+                        </td>
+                      </tr>
+                    ) : (
+                      cdnSettings.map((setting, index) => (
+                        <tr
+                          key={setting.id}
+                          className="table-row animate-fade-in-up"
+                          style={{ animationDelay: `${index * 0.05}s` }}
+                        >
+                          <td className="p-4 font-medium text-foreground">{setting.domain}</td>
+                          <td className="p-4">
+                            <Badge
+                              className={cn(
+                                "px-3 py-1 rounded-full text-xs font-medium",
+                                setting.status === "active"
+                                  ? "bg-accent-green/20 text-accent-green"
+                                  : setting.status === "deploying"
+                                    ? "bg-accent-blue/20 text-accent-blue"
+                                    : "bg-muted/20 text-muted-foreground",
+                              )}
+                            >
+                              {setting.status.replace("-", " ")}
+                              {setting.status === "deploying" && <Loader2 className="w-3 h-3 ml-1 animate-spin" />}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <Select
+                              value={setting.cacheLevel}
+                              onValueChange={(value) => handleUpdateSetting(setting.id, "cacheLevel", value)}
+                              disabled={setting.status === "deploying" || isLoading}
+                            >
+                              <SelectTrigger className="input-field w-[120px] h-9 text-sm">
+                                <SelectValue placeholder="Cache Level" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-card border-border">
+                                <SelectItem value="standard" className="hover:bg-muted/50">
+                                  Standard
+                                </SelectItem>
+                                <SelectItem value="aggressive" className="hover:bg-muted/50">
+                                  Aggressive
+                                </SelectItem>
+                                <SelectItem value="bypass" className="hover:bg-muted/50">
+                                  Bypass
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-4">
+                            <Switch
+                              checked={setting.sslEnabled}
+                              onCheckedChange={(checked) => handleUpdateSetting(setting.id, "sslEnabled", checked)}
+                              disabled={setting.status === "deploying" || isLoading}
+                            />
+                          </td>
+                          <td className="p-4 text-muted-foreground">
+                            {setting.lastPurged === "Never" ? "Never" : new Date(setting.lastPurged).toLocaleString()}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleToggleStatus(setting.id, setting.status)}
+                                disabled={setting.status === "deploying" || isLoading}
+                                className={cn(
+                                  "btn-outline-primary",
+                                  setting.status === "active" ? "text-destructive border-destructive/50" : "",
+                                )}
+                              >
+                                {setting.status === "active" ? (
+                                  <XCircle className="w-4 h-4" />
+                                ) : (
+                                  <CheckCircle className="w-4 h-4" />
+                                )}
+                                <span className="sr-only">Toggle Status</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handlePurgeCache(setting.id)}
+                                disabled={setting.status !== "active" || isLoading}
+                                className="btn-outline-primary"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                                <span className="sr-only">Purge Cache</span>
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Gzip compression</h3>
-                  <p className="text-sm text-gray-400">Compress content for faster delivery</p>
-                </div>
-                <Button className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30">Enabled</Button>
+          {/* Add Domain to CDN */}
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-foreground">
+                <Cloud className="w-5 h-5 text-primary" />
+                <span>Add Domain to CDN</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label htmlFor="newDomain" className="block text-sm font-medium text-muted-foreground mb-2">
+                  Domain Name
+                </label>
+                <Input
+                  id="newDomain"
+                  placeholder="e.g., yourwebsite.com"
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  className="input-field"
+                />
               </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Browser cache TTL</h3>
-                  <p className="text-sm text-gray-400">How long browsers should cache content</p>
-                </div>
-                <Input defaultValue="86400" className="w-32 bg-white/5 border-white/10" placeholder="Seconds" />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Edge cache TTL</h3>
-                  <p className="text-sm text-gray-400">How long edge servers should cache content</p>
-                </div>
-                <Input defaultValue="604800" className="w-32 bg-white/5 border-white/10" placeholder="Seconds" />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Security headers</h3>
-                  <p className="text-sm text-gray-400">Add security headers to responses</p>
-                </div>
-                <Button className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30">Enabled</Button>
-              </div>
+              <Button onClick={handleAddDomain} disabled={isLoading} className="btn-gradient">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" /> Add Domain
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

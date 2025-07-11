@@ -1,97 +1,55 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { DatabaseService } from "@/lib/database"
-import { AuthService } from "@/lib/auth"
-import { validateRequest } from "@/lib/validation"
-import { z } from "zod"
+import { NextResponse } from "next/server"
 
-const createUserSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(2),
-  role: z.enum(["admin", "employee", "client"]),
-  department: z.string().optional(),
-  employee_code: z.string().optional(),
-})
+// Mock data for cPanel users (distinct from application users)
+let mockCpanelUsers = [
+  { id: "cuser_1", username: "mainuser", email: "main@domain.com", role: "Owner", status: "Active" },
+  { id: "cuser_2", username: "devuser", email: "dev@domain.com", role: "Developer", status: "Active" },
+  { id: "cuser_3", username: "guestuser", email: "guest@domain.com", role: "Guest", status: "Inactive" },
+]
 
-export async function GET(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
-    }
-
-    const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
-
-    if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "10")
-    const role = searchParams.get("role")
-    const search = searchParams.get("search")
-
-    const users = await DatabaseService.getUsers({
-      page,
-      limit,
-      role: role as any,
-      search,
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: users,
-      pagination: {
-        page,
-        limit,
-        total: users.length,
-      },
-    })
-  } catch (error) {
-    console.error("Get users error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
+export async function GET() {
+  return NextResponse.json({ success: true, users: mockCpanelUsers })
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
+export async function POST(request: Request) {
+  const { action, username, email, role, password, id } = await request.json()
+
+  if (action === "create") {
+    if (!username || !email || !role || !password) {
+      return NextResponse.json({ success: false, error: "All fields are required to create a user" }, { status: 400 })
     }
-
-    const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
-
-    if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+    const newUser = {
+      id: `cuser_${Date.now()}`,
+      username,
+      email,
+      role,
+      status: "Active",
     }
-
-    const body = await request.json()
-    const validation = validateRequest(createUserSchema, body)
-
-    if (!validation.success) {
-      return NextResponse.json({ error: "Validation failed", details: validation.errors }, { status: 400 })
+    mockCpanelUsers.push(newUser)
+    return NextResponse.json({ success: true, message: "User created successfully.", user: newUser })
+  } else if (action === "delete") {
+    if (!id) {
+      return NextResponse.json({ success: false, error: "User ID is required" }, { status: 400 })
     }
-
-    const newUser = await DatabaseService.createUser({
-      ...validation.data,
-      password_hash: await AuthService.hashPassword("defaultPassword123"),
-      is_active: true,
-      created_by: user.id,
-    })
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: newUser,
-        message: "User created successfully",
-      },
-      { status: 201 },
-    )
-  } catch (error) {
-    console.error("Create user error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const initialLength = mockCpanelUsers.length
+    mockCpanelUsers = mockCpanelUsers.filter((user) => user.id !== id)
+    if (mockCpanelUsers.length < initialLength) {
+      return NextResponse.json({ success: true, message: "User deleted successfully." })
+    } else {
+      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 })
+    }
+  } else if (action === "update_role") {
+    if (!id || !role) {
+      return NextResponse.json({ success: false, error: "User ID and new role are required" }, { status: 400 })
+    }
+    const userToUpdate = mockCpanelUsers.find((user) => user.id === id)
+    if (userToUpdate) {
+      userToUpdate.role = role
+      return NextResponse.json({ success: true, message: `User ${userToUpdate.username} role updated to ${role}.` })
+    } else {
+      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 })
+    }
+  } else {
+    return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 })
   }
 }

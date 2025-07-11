@@ -1,54 +1,80 @@
 "use client"
 
+import { Badge } from "@/components/ui/badge"
+
 import type React from "react"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Terminal,
-  Zap,
   Play,
-  Square,
+  StopCircle,
   RefreshCw,
-  Download,
-  Settings,
-  Monitor,
-  Activity,
-  FileText,
-  Package,
-  Cpu,
-  MemoryStick,
-  HardDrive,
-  Network,
+  Plus,
+  Trash2,
+  Loader2,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Server,
 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 interface CronJob {
   id: string
-  name: string
   command: string
   schedule: string
-  enabled: boolean
+  status: "active" | "inactive"
   lastRun: string
-  nextRun: string
-  output: string
 }
 
 interface Service {
   id: string
   name: string
-  status: "running" | "stopped" | "error"
-  port: number
-  memory: string
-  cpu: string
-  uptime: string
-  autoStart: boolean
+  status: "running" | "stopped" | "restarting"
+  description: string
 }
+
+const mockCronJobs: CronJob[] = [
+  {
+    id: "cron_1",
+    command: "/usr/bin/php /home/user/public_html/cron.php",
+    schedule: "Every 5 minutes",
+    status: "active",
+    lastRun: "2024-07-11 10:00:00",
+  },
+  {
+    id: "cron_2",
+    command: "/usr/bin/python /home/user/scripts/backup.py",
+    schedule: "Daily at 03:00 AM",
+    status: "active",
+    lastRun: "2024-07-11 03:00:00",
+  },
+  {
+    id: "cron_3",
+    command: "wget -q -O /dev/null https://yourdomain.com/api/heartbeat",
+    schedule: "Every hour",
+    status: "inactive",
+    lastRun: "2024-07-10 23:00:00",
+  },
+]
+
+const mockServices: Service[] = [
+  { id: "svc_1", name: "Apache Web Server", status: "running", description: "Handles HTTP/HTTPS requests." },
+  { id: "svc_2", name: "MySQL Database", status: "running", description: "Manages website databases." },
+  {
+    id: "svc_3",
+    name: "Email Server (Postfix)",
+    status: "running",
+    description: "Handles incoming and outgoing emails.",
+  },
+  { id: "svc_4", name: "Redis Cache", status: "stopped", description: "In-memory data structure store." },
+]
 
 interface LogFile {
   id: string
@@ -58,82 +84,6 @@ interface LogFile {
   modified: string
   lines: number
 }
-
-const mockCronJobs: CronJob[] = [
-  {
-    id: "1",
-    name: "Database Backup",
-    command: "/usr/local/bin/backup-db.sh",
-    schedule: "0 2 * * *",
-    enabled: true,
-    lastRun: "2024-01-15 02:00:00",
-    nextRun: "2024-01-16 02:00:00",
-    output: "Backup completed successfully",
-  },
-  {
-    id: "2",
-    name: "Log Cleanup",
-    command: "/usr/local/bin/cleanup-logs.sh",
-    schedule: "0 0 * * 0",
-    enabled: true,
-    lastRun: "2024-01-14 00:00:00",
-    nextRun: "2024-01-21 00:00:00",
-    output: "Cleaned 245 MB of old logs",
-  },
-  {
-    id: "3",
-    name: "SSL Certificate Check",
-    command: "/usr/local/bin/check-ssl.sh",
-    schedule: "0 6 * * *",
-    enabled: false,
-    lastRun: "2024-01-10 06:00:00",
-    nextRun: "Disabled",
-    output: "All certificates valid",
-  },
-]
-
-const mockServices: Service[] = [
-  {
-    id: "1",
-    name: "Apache HTTP Server",
-    status: "running",
-    port: 80,
-    memory: "245 MB",
-    cpu: "12%",
-    uptime: "15 days",
-    autoStart: true,
-  },
-  {
-    id: "2",
-    name: "MySQL Database",
-    status: "running",
-    port: 3306,
-    memory: "512 MB",
-    cpu: "8%",
-    uptime: "15 days",
-    autoStart: true,
-  },
-  {
-    id: "3",
-    name: "Redis Cache",
-    status: "running",
-    port: 6379,
-    memory: "128 MB",
-    cpu: "3%",
-    uptime: "15 days",
-    autoStart: true,
-  },
-  {
-    id: "4",
-    name: "Node.js App",
-    status: "stopped",
-    port: 3000,
-    memory: "0 MB",
-    cpu: "0%",
-    uptime: "0 days",
-    autoStart: false,
-  },
-]
 
 const mockLogFiles: LogFile[] = [
   {
@@ -166,6 +116,11 @@ export default function BackendTools() {
   const [cronJobs, setCronJobs] = useState<CronJob[]>(mockCronJobs)
   const [services, setServices] = useState<Service[]>(mockServices)
   const [logFiles, setLogFiles] = useState<LogFile[]>(mockLogFiles)
+  const [newCronJob, setNewCronJob] = useState({ command: "", schedule: "", status: "active" })
+  const [consoleCommand, setConsoleCommand] = useState("")
+  const [consoleOutput, setConsoleOutput] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
   const [terminalOutput, setTerminalOutput] = useState<string[]>([
     "Welcome to Limitless CPanel Terminal",
     "Type 'help' for available commands",
@@ -177,6 +132,165 @@ export default function BackendTools() {
     command: "",
     schedule: "",
   })
+
+  const handleCronJobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target
+    setNewCronJob((prev) => ({ ...prev, [id]: value }))
+  }
+
+  const handleCronJobSelectChange = (value: string, field: "schedule" | "status") => {
+    setNewCronJob((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const addCronJob = async () => {
+    if (!newCronJob.command || !newCronJob.schedule) {
+      toast({ title: "Error", description: "Command and schedule are required.", variant: "destructive" })
+      return
+    }
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      const response = await fetch("/api/cpanel/backend/cron", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", ...newCronJob }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCronJobs((prev) => [...prev, { ...newCronJob, id: `cron_${Date.now()}`, lastRun: "Never" }])
+        setNewCronJob({ command: "", schedule: "", status: "active" })
+        toast({ title: "Success!", description: "Cron job added." })
+      } else {
+        throw new Error(data.error || "Failed to add cron job.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const toggleCronJobStatus = async (id: string, currentStatus: string) => {
+    setIsLoading(true)
+    try {
+      const newStatus = currentStatus === "active" ? "inactive" : "active"
+      // Simulate API call
+      const response = await fetch("/api/cpanel/backend/cron", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_status", id, status: newStatus }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCronJobs((prev) =>
+          prev.map((job) => (job.id === id ? { ...job, status: newStatus as "active" | "inactive" } : job)),
+        )
+        toast({ title: "Success!", description: `Cron job status changed to ${newStatus}.` })
+      } else {
+        throw new Error(data.error || "Failed to update cron job status.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const deleteCronJob = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this cron job?")) return
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      const response = await fetch("/api/cpanel/backend/cron", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        setCronJobs((prev) => prev.filter((job) => job.id !== id))
+        toast({ title: "Success!", description: "Cron job deleted." })
+      } else {
+        throw new Error(data.error || "Failed to delete cron job.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleServiceAction = async (id: string, action: "start" | "stop" | "restart") => {
+    setIsLoading(true)
+    setServices((prev) =>
+      prev.map((svc) => (svc.id === id ? { ...svc, status: action === "restart" ? "restarting" : svc.status } : svc)),
+    )
+    try {
+      // Simulate API call
+      const response = await fetch("/api/cpanel/backend/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, id }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        setServices((prev) => prev.map((svc) => (svc.id === id ? { ...svc, status: data.newStatus } : svc)))
+        toast({ title: "Success!", description: `Service ${action}ed successfully.` })
+      } else {
+        throw new Error(data.error || `Failed to ${action} service.`)
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleConsoleCommand = async () => {
+    if (!consoleCommand.trim()) return
+    setIsLoading(true)
+    setConsoleOutput((prev) => [...prev, `> ${consoleCommand}`]) // Add command to output
+    try {
+      // Simulate API call to execute command
+      const response = await fetch("/api/cpanel/backend/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: consoleCommand }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        setConsoleOutput((prev) => [...prev, data.output])
+      } else {
+        throw new Error(data.error || "Command execution failed.")
+      }
+    } catch (error) {
+      setConsoleOutput((prev) => [...prev, `Error: ${error instanceof Error ? error.message : "Unknown error"}`])
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setConsoleCommand("")
+      setIsLoading(false)
+    }
+  }
 
   const executeCommand = (command: string) => {
     const newOutput = [...terminalOutput, `$ ${command}`]
@@ -264,504 +378,288 @@ export default function BackendTools() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "running":
-        return "bg-green-500/20 text-green-300"
+        return "bg-accent-green/20 text-accent-green"
       case "stopped":
-        return "bg-red-500/20 text-red-300"
+        return "bg-destructive/20 text-destructive"
       case "error":
-        return "bg-yellow-500/20 text-yellow-300"
+        return "bg-accent-orange/20 text-accent-orange"
       default:
-        return "bg-gray-500/20 text-gray-300"
+        return "bg-muted/20 text-muted-foreground"
     }
   }
 
   return (
     <div className="space-y-6">
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      {/* Server Console */}
+      <Card className="custom-card">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Terminal className="w-5 h-5" />
+          <CardTitle className="flex items-center space-x-2 text-foreground">
+            <Terminal className="w-5 h-5 text-primary" />
+            <span>Server Console</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-black text-gray-300 font-mono text-sm p-4 rounded-lg h-64 overflow-auto">
+            {consoleOutput.length === 0 ? (
+              <p className="text-muted-foreground">Type a command and press Enter to execute.</p>
+            ) : (
+              consoleOutput.map((line, index) => <div key={index}>{line}</div>)
+            )}
+          </div>
+          <div className="flex space-x-2">
+            <Input
+              placeholder="Enter command (e.g., ls -la)"
+              value={consoleCommand}
+              onChange={(e) => setConsoleCommand(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && !isLoading) {
+                  handleConsoleCommand()
+                }
+              }}
+              className="input-field font-mono"
+              disabled={isLoading}
+            />
+            <Button onClick={handleConsoleCommand} disabled={isLoading} className="btn-gradient">
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              <span className="sr-only">Execute Command</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="custom-card">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2 text-foreground">
+            <Terminal className="w-5 h-5 text-primary" />
             <span>Backend Tools & System Management</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="terminal" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="terminal">Terminal</TabsTrigger>
-              <TabsTrigger value="services">Services</TabsTrigger>
-              <TabsTrigger value="cron">Cron Jobs</TabsTrigger>
-              <TabsTrigger value="logs">Log Files</TabsTrigger>
-              <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
-              <TabsTrigger value="packages">Packages</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="terminal" className="space-y-6">
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>Web Terminal</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-black rounded-lg p-4 font-mono text-sm">
-                    <div className="h-96 overflow-y-auto mb-4">
-                      {terminalOutput.map((line, index) => (
-                        <div key={index} className={line.startsWith("$") ? "text-green-400" : "text-gray-300"}>
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-                    <form onSubmit={handleTerminalSubmit} className="flex items-center space-x-2">
-                      <span className="text-green-400">$</span>
-                      <input
-                        type="text"
-                        value={terminalInput}
-                        onChange={(e) => setTerminalInput(e.target.value)}
-                        className="flex-1 bg-transparent border-none outline-none text-white"
-                        placeholder="Enter command..."
-                        autoFocus
-                      />
-                    </form>
+          {/* Tabs */}
+          {/* Server Console */}
+          {/* Cron Jobs */}
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-foreground">
+                <Clock className="w-5 h-5 text-primary" />
+                <span>Cron Jobs</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4 p-4 bg-muted/20 rounded-lg border border-border">
+                <h3 className="text-lg font-semibold text-foreground flex items-center space-x-2">
+                  <Plus className="w-5 h-5 text-accent-blue" />
+                  <span>Add New Cron Job</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="command" className="block text-sm font-medium text-muted-foreground mb-2">
+                      Command
+                    </label>
+                    <Input
+                      id="command"
+                      placeholder="e.g., /usr/bin/php /home/user/script.php"
+                      value={newCronJob.command}
+                      onChange={handleCronJobChange}
+                      className="input-field"
+                    />
                   </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button size="sm" onClick={() => executeCommand("ls")} variant="outline">
-                      <FileText className="w-4 h-4 mr-2" />
-                      List Files
-                    </Button>
-                    <Button size="sm" onClick={() => executeCommand("ps")} variant="outline">
-                      <Activity className="w-4 h-4 mr-2" />
-                      Processes
-                    </Button>
-                    <Button size="sm" onClick={() => executeCommand("top")} variant="outline">
-                      <Monitor className="w-4 h-4 mr-2" />
-                      System Info
-                    </Button>
-                    <Button size="sm" onClick={() => executeCommand("clear")} variant="outline">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Clear
-                    </Button>
+                  <div>
+                    <label htmlFor="schedule" className="block text-sm font-medium text-muted-foreground mb-2">
+                      Schedule
+                    </label>
+                    <Select
+                      value={newCronJob.schedule}
+                      onValueChange={(value) => handleCronJobSelectChange(value, "schedule")}
+                    >
+                      <SelectTrigger className="input-field">
+                        <SelectValue placeholder="Select schedule" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="Every minute" className="hover:bg-muted/50">
+                          Every minute
+                        </SelectItem>
+                        <SelectItem value="Every 5 minutes" className="hover:bg-muted/50">
+                          Every 5 minutes
+                        </SelectItem>
+                        <SelectItem value="Every hour" className="hover:bg-muted/50">
+                          Every hour
+                        </SelectItem>
+                        <SelectItem value="Daily at 03:00 AM" className="hover:bg-muted/50">
+                          Daily at 03:00 AM
+                        </SelectItem>
+                        <SelectItem value="Weekly" className="hover:bg-muted/50">
+                          Weekly
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="services" className="space-y-6">
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>System Services</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="border-b border-white/10">
-                        <tr className="text-left">
-                          <th className="p-4 font-medium">Service</th>
-                          <th className="p-4 font-medium">Status</th>
-                          <th className="p-4 font-medium">Port</th>
-                          <th className="p-4 font-medium">Memory</th>
-                          <th className="p-4 font-medium">CPU</th>
-                          <th className="p-4 font-medium">Uptime</th>
-                          <th className="p-4 font-medium">Auto Start</th>
-                          <th className="p-4 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {services.map((service, index) => (
-                          <motion.tr
-                            key={service.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className="border-b border-white/5 hover:bg-white/5"
-                          >
-                            <td className="p-4 font-medium">{service.name}</td>
-                            <td className="p-4">
-                              <Badge className={getStatusColor(service.status)}>{service.status}</Badge>
-                            </td>
-                            <td className="p-4 text-gray-400">{service.port}</td>
-                            <td className="p-4 text-gray-400">{service.memory}</td>
-                            <td className="p-4 text-gray-400">{service.cpu}</td>
-                            <td className="p-4 text-gray-400">{service.uptime}</td>
-                            <td className="p-4">
-                              <Switch checked={service.autoStart} />
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => toggleService(service.id)}
-                                  className="hover:bg-white/10"
-                                >
-                                  {service.status === "running" ? (
-                                    <Square className="w-4 h-4" />
-                                  ) : (
-                                    <Play className="w-4 h-4" />
-                                  )}
-                                </Button>
-                                <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                                  <RefreshCw className="w-4 h-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                                  <Settings className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="cron" className="space-y-6">
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>Create Cron Job</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Job Name</label>
-                      <Input
-                        placeholder="Database Backup"
-                        value={newCronForm.name}
-                        onChange={(e) => setNewCronForm((prev) => ({ ...prev, name: e.target.value }))}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Command</label>
-                      <Input
-                        placeholder="/usr/local/bin/backup.sh"
-                        value={newCronForm.command}
-                        onChange={(e) => setNewCronForm((prev) => ({ ...prev, command: e.target.value }))}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Schedule (Cron)</label>
-                      <Input
-                        placeholder="0 2 * * *"
-                        value={newCronForm.schedule}
-                        onChange={(e) => setNewCronForm((prev) => ({ ...prev, schedule: e.target.value }))}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={createCronJob}
-                    className="w-full bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Create Cron Job
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>Scheduled Jobs</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="border-b border-white/10">
-                        <tr className="text-left">
-                          <th className="p-4 font-medium">Name</th>
-                          <th className="p-4 font-medium">Command</th>
-                          <th className="p-4 font-medium">Schedule</th>
-                          <th className="p-4 font-medium">Last Run</th>
-                          <th className="p-4 font-medium">Next Run</th>
-                          <th className="p-4 font-medium">Status</th>
-                          <th className="p-4 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cronJobs.map((job, index) => (
-                          <motion.tr
-                            key={job.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className="border-b border-white/5 hover:bg-white/5"
-                          >
-                            <td className="p-4 font-medium">{job.name}</td>
-                            <td className="p-4">
-                              <code className="text-xs bg-white/10 px-2 py-1 rounded">{job.command}</code>
-                            </td>
-                            <td className="p-4">
-                              <code className="text-xs bg-white/10 px-2 py-1 rounded">{job.schedule}</code>
-                            </td>
-                            <td className="p-4 text-gray-400 text-sm">{job.lastRun}</td>
-                            <td className="p-4 text-gray-400 text-sm">{job.nextRun}</td>
-                            <td className="p-4">
-                              <Badge
-                                className={
-                                  job.enabled ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"
-                                }
-                              >
-                                {job.enabled ? "Enabled" : "Disabled"}
-                              </Badge>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => toggleCronJob(job.id)}
-                                  className="hover:bg-white/10"
-                                >
-                                  {job.enabled ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                                </Button>
-                                <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                                  <FileText className="w-4 h-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                                  <Settings className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="logs" className="space-y-6">
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>System Log Files</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="border-b border-white/10">
-                        <tr className="text-left">
-                          <th className="p-4 font-medium">Log File</th>
-                          <th className="p-4 font-medium">Path</th>
-                          <th className="p-4 font-medium">Size</th>
-                          <th className="p-4 font-medium">Lines</th>
-                          <th className="p-4 font-medium">Modified</th>
-                          <th className="p-4 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {logFiles.map((log, index) => (
-                          <motion.tr
-                            key={log.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className="border-b border-white/5 hover:bg-white/5"
-                          >
-                            <td className="p-4 font-medium">{log.name}</td>
-                            <td className="p-4">
-                              <code className="text-xs bg-white/10 px-2 py-1 rounded">{log.path}</code>
-                            </td>
-                            <td className="p-4 text-gray-400">{log.size}</td>
-                            <td className="p-4 text-gray-400">{log.lines.toLocaleString()}</td>
-                            <td className="p-4 text-gray-400 text-sm">{log.modified}</td>
-                            <td className="p-4">
-                              <div className="flex items-center space-x-2">
-                                <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                                  <FileText className="w-4 h-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                                  <RefreshCw className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>Live Log Viewer</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-black rounded-lg p-4 font-mono text-sm h-64 overflow-y-auto">
-                    <div className="text-green-400">[2024-01-15 14:30:22] INFO: Server started successfully</div>
-                    <div className="text-blue-400">[2024-01-15 14:30:23] DEBUG: Database connection established</div>
-                    <div className="text-gray-300">[2024-01-15 14:30:24] INFO: User login: admin@limitless.com</div>
-                    <div className="text-yellow-400">[2024-01-15 14:30:25] WARN: High memory usage detected</div>
-                    <div className="text-gray-300">[2024-01-15 14:30:26] INFO: Backup process started</div>
-                    <div className="text-green-400">[2024-01-15 14:30:27] INFO: SSL certificate renewed</div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button size="sm" variant="outline">
-                      <Play className="w-4 h-4 mr-2" />
-                      Start Monitoring
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Square className="w-4 h-4 mr-2" />
-                      Stop
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="monitoring" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                  <CardContent className="p-6 text-center">
-                    <Cpu className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                    <h3 className="text-2xl font-bold">23%</h3>
-                    <p className="text-gray-400 text-sm">CPU Usage</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                  <CardContent className="p-6 text-center">
-                    <MemoryStick className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                    <h3 className="text-2xl font-bold">67%</h3>
-                    <p className="text-gray-400 text-sm">Memory Usage</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                  <CardContent className="p-6 text-center">
-                    <HardDrive className="w-8 h-8 text-orange-400 mx-auto mb-2" />
-                    <h3 className="text-2xl font-bold">45%</h3>
-                    <p className="text-gray-400 text-sm">Disk Usage</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                  <CardContent className="p-6 text-center">
-                    <Network className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                    <h3 className="text-2xl font-bold">142</h3>
-                    <p className="text-gray-400 text-sm">Connections</p>
-                  </CardContent>
-                </Card>
+                </div>
+                <Button onClick={addCronJob} disabled={isLoading} className="btn-gradient">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" /> Add Cron Job
+                    </>
+                  )}
+                </Button>
               </div>
 
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>Real-time System Monitoring</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span>CPU Load Average</span>
-                      <span className="text-gray-400">1.2, 1.5, 1.8</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Memory</span>
-                      <span className="text-gray-400">5.4 GB / 8.0 GB</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Disk I/O</span>
-                      <span className="text-gray-400">Read: 45 MB/s, Write: 23 MB/s</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Network</span>
-                      <span className="text-gray-400">In: 125 Mbps, Out: 89 Mbps</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Uptime</span>
-                      <span className="text-gray-400">15 days, 7 hours, 23 minutes</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-border/50">
+                    <tr className="text-left">
+                      <th className="p-4 font-medium table-header">Command</th>
+                      <th className="p-4 font-medium table-header">Schedule</th>
+                      <th className="p-4 font-medium table-header">Last Run</th>
+                      <th className="p-4 font-medium table-header">Status</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cronJobs.map((job, index) => (
+                      <tr
+                        key={job.id}
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        <td className="p-4 font-mono text-muted-foreground">{job.command}</td>
+                        <td className="p-4 text-muted-foreground">{job.schedule}</td>
+                        <td className="p-4 text-muted-foreground">{job.lastRun}</td>
+                        <td className="p-4">
+                          <Badge
+                            className={cn(
+                              "px-3 py-1 rounded-full text-xs font-medium",
+                              job.status === "active"
+                                ? "bg-accent-green/20 text-accent-green"
+                                : "bg-muted/20 text-muted-foreground",
+                            )}
+                          >
+                            {job.status}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toggleCronJobStatus(job.id, job.status)}
+                              className={cn(
+                                "btn-outline-primary",
+                                job.status === "active" ? "text-destructive border-destructive/50" : "",
+                              )}
+                            >
+                              {job.status === "active" ? (
+                                <XCircle className="w-4 h-4" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4" />
+                              )}
+                              <span className="sr-only">Toggle Status</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteCronJob(job.id)}
+                              className="btn-outline-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
 
-            <TabsContent value="packages" className="space-y-6">
-              <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-                <CardHeader>
-                  <CardTitle>Package Manager</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-4">
-                    <Input placeholder="Search packages..." className="bg-white/5 border-white/10" />
-                    <Button className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30">
-                      <Package className="w-4 h-4 mr-2" />
-                      Search
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-white/5 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Node.js</h4>
-                        <Badge className="bg-green-500/20 text-green-300">Installed</Badge>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-2">JavaScript runtime built on Chrome's V8</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          Update
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-white/5 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Python</h4>
-                        <Badge className="bg-green-500/20 text-green-300">Installed</Badge>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-2">High-level programming language</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          Update
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-white/5 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Docker</h4>
-                        <Badge className="bg-gray-500/20 text-gray-300">Available</Badge>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-2">Container platform for applications</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          Install
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-white/5 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">Git</h4>
-                        <Badge className="bg-green-500/20 text-green-300">Installed</Badge>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-2">Distributed version control system</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          Update
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          {/* Server Services */}
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-foreground">
+                <Server className="w-5 h-5 text-primary" />
+                <span>Server Services</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-border/50">
+                    <tr className="text-left">
+                      <th className="p-4 font-medium table-header">Service Name</th>
+                      <th className="p-4 font-medium table-header">Description</th>
+                      <th className="p-4 font-medium table-header">Status</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {services.map((service, index) => (
+                      <tr
+                        key={service.id}
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        <td className="p-4 font-medium text-foreground">{service.name}</td>
+                        <td className="p-4 text-muted-foreground">{service.description}</td>
+                        <td className="p-4">
+                          <Badge
+                            className={cn(
+                              "px-3 py-1 rounded-full text-xs font-medium",
+                              service.status === "running"
+                                ? "bg-accent-green/20 text-accent-green"
+                                : service.status === "stopped"
+                                  ? "bg-muted/20 text-muted-foreground"
+                                  : "bg-accent-orange/20 text-accent-orange",
+                            )}
+                          >
+                            {service.status.replace("-", " ")}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleServiceAction(service.id, "start")}
+                              disabled={service.status === "running" || isLoading}
+                              className="btn-outline-primary"
+                            >
+                              <Play className="w-4 h-4" />
+                              <span className="sr-only">Start</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleServiceAction(service.id, "stop")}
+                              disabled={service.status === "stopped" || isLoading}
+                              className="btn-outline-destructive"
+                            >
+                              <StopCircle className="w-4 h-4" />
+                              <span className="sr-only">Stop</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleServiceAction(service.id, "restart")}
+                              disabled={isLoading}
+                              className="btn-outline-primary"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                              <span className="sr-only">Restart</span>
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
     </div>

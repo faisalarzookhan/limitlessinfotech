@@ -1,238 +1,131 @@
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { ArrowRight, BookOpen, History, Target, Settings, Users, Shield, Code } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Book, Lightbulb, Users, FileText, ArrowRight, Shield, Mail } from "lucide-react"
 
-const documentationCategories = [
-  {
-    title: "Company History",
-    description: "Learn about our journey from a small startup to a leading technology solutions provider.",
-    icon: History,
-    href: "/docs/company-history",
-    color: "from-blue-500 to-cyan-500",
-  },
-  {
-    title: "Mission & Values",
-    description: "Discover our core mission, vision, and the values that drive everything we do.",
-    icon: Target,
-    href: "/docs/mission-values",
-    color: "from-purple-500 to-pink-500",
-  },
-  {
-    title: "Operational Procedures",
-    description: "Explore our methodologies, project management approaches, and quality assurance processes.",
-    icon: Settings,
-    href: "/docs/operational-procedures",
-    color: "from-green-500 to-emerald-500",
-  },
-  {
-    title: "Team Structure",
-    description: "Understand our organizational structure, roles, and responsibilities.",
-    icon: Users,
-    href: "/docs/team-structure",
-    color: "from-orange-500 to-red-500",
-  },
-  {
-    title: "Security Protocols",
-    description: "Learn about our security measures, data protection policies, and compliance standards.",
-    icon: Shield,
-    href: "/docs/security-protocols",
-    color: "from-indigo-500 to-violet-500",
-  },
-  {
-    title: "Technical Standards",
-    description: "Explore our coding standards, technology stack, and development best practices.",
-    icon: Code,
-    href: "/docs/technical-standards",
-    color: "from-yellow-500 to-amber-500",
-  },
-]
+export default function DocsPage() {
+  const docCategories = [
+    {
+      title: "Company Information",
+      description: "Learn about Limitless Infotech Solutions, our history, mission, and values.",
+      icon: Book,
+      links: [
+        { href: "/docs/company-history", label: "Company History" },
+        { href: "/docs/mission-values", label: "Mission & Values" },
+        { href: "/team", label: "Our Team" },
+      ],
+      color: "text-accent-blue",
+    },
+    {
+      title: "Service Guides",
+      description: "Detailed guides and documentation for our various services.",
+      icon: FileText,
+      links: [
+        { href: "/services/web-development", label: "Web Development Guide" },
+        { href: "/services/mobile-app-development", label: "Mobile App Guide" },
+        { href: "/services/custom-software", label: "Custom Software Guide" },
+        { href: "/services/crm-solutions", label: "CRM Solutions Guide" },
+      ],
+      color: "text-accent-green",
+    },
+    {
+      title: "API Documentation",
+      description: "Comprehensive documentation for integrating with our APIs.",
+      icon: Lightbulb,
+      links: [
+        { href: "/api-docs", label: "API Reference" },
+        { href: "/api-docs", label: "Getting Started with APIs" },
+        { href: "/api-docs", label: "API Use Cases" },
+      ],
+      color: "text-accent-orange",
+    },
+    {
+      title: "Legal & Policies",
+      description: "Our legal terms, privacy policy, and cookie policy.",
+      icon: Shield,
+      links: [
+        { href: "/terms", label: "Terms of Service" },
+        { href: "/privacy", label: "Privacy Policy" },
+        { href: "/cookies", label: "Cookie Policy" },
+      ],
+      color: "text-accent-purple",
+    },
+    {
+      title: "CPanel & Hosting",
+      description: "Guides for managing your hosting account and cPanel features.",
+      icon: Users,
+      links: [
+        { href: "/cpanel", label: "cPanel Overview" },
+        { href: "/cpanel?tab=file-manager", label: "File Management" },
+        { href: "/cpanel?tab=database-manager", label: "Database Management" },
+        { href: "/cpanel?tab=email-manager", label: "Email Management" },
+      ],
+      color: "text-accent-cyan",
+    },
+    {
+      title: "Webmail Access",
+      description: "Instructions for accessing and using your webmail.",
+      icon: Mail,
+      links: [
+        { href: "/webmail", label: "Access Webmail" },
+        { href: "/webmail", label: "Webmail Features" },
+        { href: "/webmail", label: "Troubleshooting Webmail" },
+      ],
+      color: "text-primary",
+    },
+  ]
 
-export default function DocumentationPage() {
   return (
-    <>
-      {/* Hero Section */}
-      <section className="bg-slate-900 pt-32 pb-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
-            <Badge className="mb-6">Documentation</Badge>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">Company Documentation</h1>
-            <p className="text-xl text-slate-300 mb-8">
-              Comprehensive information about our company, processes, and values
-            </p>
-            <div className="flex justify-center">
-              <Button asChild size="lg">
-                <Link href="#documentation-categories">
-                  Browse Documentation
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="min-h-screen bg-dark-blue-900 text-foreground py-12 sm:py-16 lg:py-20">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <header className="text-center mb-12">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">Documentation & Guides</h1>
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+            Find comprehensive resources, guides, and policies to help you understand and utilize Limitless Infotech
+            Solutions to its fullest potential.
+          </p>
+        </header>
 
-      {/* Documentation Categories */}
-      <section id="documentation-categories" className="py-20 bg-slate-800">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-6">Documentation Categories</h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              Explore our comprehensive documentation to learn more about Limitless Infotech
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {documentationCategories.map((category) => (
-              <Card
-                key={category.title}
-                className="bg-slate-800/50 border-slate-700 hover:border-blue-500/50 transition-all duration-300"
-              >
-                <CardContent className="p-6">
-                  <div
-                    className={`w-12 h-12 rounded-lg bg-gradient-to-r ${category.color} flex items-center justify-center mb-4`}
-                  >
-                    <category.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">{category.title}</h3>
-                  <p className="text-slate-300 mb-4">{category.description}</p>
-                  <Button asChild variant="outline">
-                    <Link href={category.href}>
-                      Read More
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Recent Updates */}
-      <section className="py-20 bg-slate-900">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge className="mb-4">Latest Updates</Badge>
-            <h2 className="text-3xl font-bold mb-6">Recently Updated Documentation</h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              Stay up-to-date with our latest documentation updates and additions
-            </p>
-          </div>
-
-          <div className="max-w-4xl mx-auto space-y-6">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Badge className="mb-2">Updated 3 days ago</Badge>
-                    <h3 className="text-xl font-semibold mb-2">Security Protocols</h3>
-                    <p className="text-slate-300 mb-4">
-                      Updated information about our GDPR compliance and data protection measures.
-                    </p>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href="/docs/security-protocols">
-                        Read Update
-                        <ArrowRight className="ml-2 h-4 w-4" />
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+          {docCategories.map((category, index) => (
+            <Card
+              key={category.title}
+              className="custom-card h-full flex flex-col animate-fade-in-up"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <CardHeader className="flex flex-col items-center text-center pb-4">
+                <category.icon className={`w-12 h-12 mb-3 ${category.color}`} />
+                <CardTitle className="text-xl font-semibold text-foreground">{category.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col justify-between">
+                <p className="text-muted-foreground text-sm mb-4">{category.description}</p>
+                <ul className="space-y-2">
+                  {category.links.map((link, linkIndex) => (
+                    <li key={linkIndex}>
+                      <Link
+                        href={link.href}
+                        className="flex items-center text-accent-blue hover:text-accent-blue/80 transition-colors text-sm"
+                      >
+                        <ArrowRight className="w-4 h-4 mr-2 flex-shrink-0" />
+                        {link.label}
                       </Link>
-                    </Button>
-                  </div>
-                  <div className="bg-blue-500/20 p-3 rounded-full">
-                    <Shield className="w-8 h-8 text-blue-400" />
-                  </div>
-                </div>
+                    </li>
+                  ))}
+                </ul>
               </CardContent>
             </Card>
+          ))}
+        </section>
 
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Badge className="mb-2">Updated 1 week ago</Badge>
-                    <h3 className="text-xl font-semibold mb-2">Operational Procedures</h3>
-                    <p className="text-slate-300 mb-4">
-                      New agile development workflow and project management guidelines.
-                    </p>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href="/docs/operational-procedures">
-                        Read Update
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                  <div className="bg-green-500/20 p-3 rounded-full">
-                    <Settings className="w-8 h-8 text-green-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Badge className="mb-2">Updated 2 weeks ago</Badge>
-                    <h3 className="text-xl font-semibold mb-2">Technical Standards</h3>
-                    <p className="text-slate-300 mb-4">
-                      Added new coding standards for React, Next.js, and TypeScript development.
-                    </p>
-                    <Button asChild variant="outline" size="sm">
-                      <Link href="/docs/technical-standards">
-                        Read Update
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                  <div className="bg-purple-500/20 p-3 rounded-full">
-                    <Code className="w-8 h-8 text-purple-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Quick Access */}
-      <section className="py-20 bg-slate-800">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-6">Quick Access</h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto">Frequently accessed documentation sections</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Button asChild variant="outline" className="h-auto p-6 flex flex-col items-center space-y-2">
-              <Link href="/docs/company-history">
-                <BookOpen className="w-8 h-8 mb-2" />
-                <span>Company History</span>
-              </Link>
-            </Button>
-
-            <Button asChild variant="outline" className="h-auto p-6 flex flex-col items-center space-y-2">
-              <Link href="/docs/mission-values">
-                <Target className="w-8 h-8 mb-2" />
-                <span>Mission & Values</span>
-              </Link>
-            </Button>
-
-            <Button asChild variant="outline" className="h-auto p-6 flex flex-col items-center space-y-2">
-              <Link href="/docs/operational-procedures">
-                <Settings className="w-8 h-8 mb-2" />
-                <span>Procedures</span>
-              </Link>
-            </Button>
-
-            <Button asChild variant="outline" className="h-auto p-6 flex flex-col items-center space-y-2">
-              <Link href="/docs/security-protocols">
-                <Shield className="w-8 h-8 mb-2" />
-                <span>Security</span>
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-    </>
+        <section className="text-center">
+          <h2 className="text-3xl font-bold text-foreground mb-4">Need More Help?</h2>
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-6">
+            If you can&apos;t find the information you&apos;re looking for, our support team is here to assist you.
+          </p>
+          <Link href="/contact" className="btn-gradient">
+            Contact Support
+          </Link>
+        </section>
+      </div>
+    </div>
   )
 }

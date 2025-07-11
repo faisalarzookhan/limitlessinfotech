@@ -5,17 +5,17 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, company, message, service } = await request.json()
+    const { firstName, lastName, email, subject, message } = await request.json()
 
-    if (!name || !email || !message) {
-      return NextResponse.json({ error: "Missing required fields: name, email, message" }, { status: 400 })
+    if (!firstName || !lastName || !email || !subject || !message) {
+      return NextResponse.json({ success: false, error: "All fields are required" }, { status: 400 })
     }
 
     // Send email to Limitless Infotech
     const adminEmail = await resend.emails.send({
       from: "Contact Form <noreply@limitless.com>",
       to: ["info@limitless.com"],
-      subject: `New Contact Form Submission - ${service || "General Inquiry"}`,
+      subject: `New Contact Form Submission: ${subject}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1e293b 0%, #1e40af 100%); color: white; border-radius: 12px; overflow: hidden;">
           <div style="background: linear-gradient(90deg, #3b82f6, #06b6d4); padding: 20px; text-align: center;">
@@ -25,10 +25,9 @@ export async function POST(request: NextRequest) {
           <div style="padding: 30px;">
             <div style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
               <h3 style="margin-top: 0; color: #60a5fa;">Contact Details:</h3>
-              <p><strong>Name:</strong> ${name}</p>
+              <p><strong>Name:</strong> ${firstName} ${lastName}</p>
               <p><strong>Email:</strong> ${email}</p>
-              ${company ? `<p><strong>Company:</strong> ${company}</p>` : ""}
-              ${service ? `<p><strong>Service Interest:</strong> ${service}</p>` : ""}
+              <p><strong>Subject:</strong> ${subject}</p>
               
               <h3 style="color: #60a5fa; margin-top: 20px;">Message:</h3>
               <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 6px; border-left: 4px solid #3b82f6;">
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
             <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.9;">SOLUTION'S PVT LTD</p>
           </div>
           <div style="padding: 30px;">
-            <h2 style="color: #60a5fa; margin-top: 0;">Thank You, ${name}!</h2>
+            <h2 style="color: #60a5fa; margin-top: 0;">Thank You, ${firstName} ${lastName}!</h2>
             <div style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
               <p>We've received your inquiry and our team will get back to you within 24 hours.</p>
               
@@ -70,7 +69,7 @@ export async function POST(request: NextRequest) {
 
               <div style="background: rgba(59, 130, 246, 0.1); border-radius: 6px; padding: 15px; margin: 20px 0; border-left: 4px solid #3b82f6;">
                 <h4 style="margin-top: 0; color: #60a5fa;">Your Inquiry Summary:</h4>
-                <p><strong>Service Interest:</strong> ${service || "General Inquiry"}</p>
+                <p><strong>Subject:</strong> ${subject}</p>
                 <p><strong>Message:</strong> ${message.substring(0, 100)}${message.length > 100 ? "..." : ""}</p>
               </div>
             </div>
@@ -120,7 +119,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Contact form error:", error)
     return NextResponse.json(
-      { error: "Failed to send contact form", details: error instanceof Error ? error.message : "Unknown error" },
+      {
+        success: false,
+        error: "Failed to send contact form",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     )
   }

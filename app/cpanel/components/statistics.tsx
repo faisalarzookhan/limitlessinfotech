@@ -1,351 +1,388 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
+import { Input } from "@/components/ui/input"
+
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { BarChart3, TrendingUp, TrendingDown, Users, Eye, Clock, Wifi, HardDrive, Cpu, MemoryStick } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
+import { Globe, Users, HardDrive, Zap } from "lucide-react"
 
 interface TrafficData {
-  date: string
-  visitors: number
-  pageViews: number
+  timestamp: string
+  visits: number
+  pageviews: number
   bandwidth: number
+}
+
+interface VisitorData {
+  country: string
+  visits: number
+  color: string
 }
 
 interface TopPage {
   path: string
-  views: number
-  percentage: number
+  pageviews: number
 }
 
-interface Visitor {
-  country: string
-  visitors: number
-  percentage: number
-  flag: string
+interface TopReferrer {
+  domain: string
+  visits: number
 }
 
 const mockTrafficData: TrafficData[] = [
-  { date: "2024-01-08", visitors: 1247, pageViews: 3891, bandwidth: 2.3 },
-  { date: "2024-01-09", visitors: 1356, pageViews: 4102, bandwidth: 2.8 },
-  { date: "2024-01-10", visitors: 1189, pageViews: 3654, bandwidth: 2.1 },
-  { date: "2024-01-11", visitors: 1423, pageViews: 4387, bandwidth: 3.2 },
-  { date: "2024-01-12", visitors: 1567, pageViews: 4892, bandwidth: 3.7 },
-  { date: "2024-01-13", visitors: 1334, pageViews: 4156, bandwidth: 2.9 },
-  { date: "2024-01-14", visitors: 1678, pageViews: 5234, bandwidth: 4.1 },
-  { date: "2024-01-15", visitors: 1789, pageViews: 5567, bandwidth: 4.5 },
+  { timestamp: "00:00", visits: 1200, pageviews: 3500, bandwidth: 120 },
+  { timestamp: "04:00", visits: 800, pageviews: 2200, bandwidth: 90 },
+  { timestamp: "08:00", visits: 2500, pageviews: 7000, bandwidth: 250 },
+  { timestamp: "12:00", visits: 3800, pageviews: 10500, bandwidth: 380 },
+  { timestamp: "16:00", visits: 3200, pageviews: 9000, bandwidth: 320 },
+  { timestamp: "20:00", visits: 2800, pageviews: 7800, bandwidth: 280 },
+]
+
+const mockVisitorData: VisitorData[] = [
+  { country: "USA", visits: 4500, color: "hsl(var(--accent-blue))" },
+  { country: "Canada", visits: 1200, color: "hsl(var(--accent-green))" },
+  { country: "UK", visits: 800, color: "hsl(var(--accent-orange))" },
+  { country: "Germany", visits: 600, color: "hsl(var(--accent-purple))" },
+  { country: "Australia", visits: 400, color: "hsl(var(--accent-cyan))" },
+  { country: "Other", visits: 1500, color: "hsl(var(--muted-foreground))" },
 ]
 
 const mockTopPages: TopPage[] = [
-  { path: "/", views: 12847, percentage: 35.2 },
-  { path: "/services", views: 8934, percentage: 24.5 },
-  { path: "/about", views: 5672, percentage: 15.6 },
-  { path: "/contact", views: 4123, percentage: 11.3 },
-  { path: "/blog", views: 3456, percentage: 9.5 },
-  { path: "/portfolio", views: 1456, percentage: 4.0 },
+  { path: "/", pageviews: 15000 },
+  { path: "/services", pageviews: 8000 },
+  { path: "/projects", pageviews: 6500 },
+  { path: "/contact", pageviews: 4200 },
+  { path: "/about", pageviews: 3100 },
 ]
 
-const mockVisitors: Visitor[] = [
-  { country: "United States", visitors: 4567, percentage: 42.3, flag: "🇺🇸" },
-  { country: "India", visitors: 2134, percentage: 19.8, flag: "🇮🇳" },
-  { country: "United Kingdom", visitors: 1456, percentage: 13.5, flag: "🇬🇧" },
-  { country: "Canada", visitors: 987, percentage: 9.1, flag: "🇨🇦" },
-  { country: "Germany", visitors: 765, percentage: 7.1, flag: "🇩🇪" },
-  { country: "Australia", visitors: 543, percentage: 5.0, flag: "🇦🇺" },
-  { country: "Others", visitors: 345, percentage: 3.2, flag: "🌍" },
+const mockTopReferrers: TopReferrer[] = [
+  { domain: "google.com", visits: 7200 },
+  { domain: "bing.com", visits: 1500 },
+  { domain: "facebook.com", visits: 800 },
+  { domain: "linkedin.com", visits: 600 },
+  { domain: "direct", visits: 2500 },
 ]
 
 export default function Statistics() {
-  const [currentStats, setCurrentStats] = useState({
-    totalVisitors: 15789,
-    totalPageViews: 48567,
-    bounceRate: 34.2,
-    avgSessionDuration: "3:45",
-    onlineUsers: 142,
-  })
+  const [trafficData, setTrafficData] = useState<TrafficData[]>(mockTrafficData)
+  const [visitorData, setVisitorData] = useState<VisitorData[]>(mockVisitorData)
+  const [topPages, setTopPages] = useState<TopPage[]>(mockTopPages)
+  const [topReferrers, setTopReferrers] = useState<TopReferrer[]>(mockTopReferrers)
 
-  const [systemMetrics, setSystemMetrics] = useState({
-    cpuUsage: 23,
-    memoryUsage: 67,
-    diskUsage: 45,
-    networkIn: 2.3,
-    networkOut: 1.8,
-  })
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStats((prev) => ({
-        ...prev,
-        onlineUsers: Math.max(50, Math.min(200, prev.onlineUsers + Math.floor((Math.random() - 0.5) * 20))),
-      }))
-
-      setSystemMetrics((prev) => ({
-        ...prev,
-        cpuUsage: Math.max(10, Math.min(90, prev.cpuUsage + (Math.random() - 0.5) * 10)),
-        memoryUsage: Math.max(20, Math.min(95, prev.memoryUsage + (Math.random() - 0.5) * 5)),
-        networkIn: Math.max(0.1, Math.min(10, prev.networkIn + (Math.random() - 0.5) * 1)),
-        networkOut: Math.max(0.1, Math.min(10, prev.networkOut + (Math.random() - 0.5) * 1)),
-      }))
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  const getChangePercentage = (current: number, previous: number) => {
-    return (((current - previous) / previous) * 100).toFixed(1)
-  }
-
-  const latestData = mockTrafficData[mockTrafficData.length - 1]
-  const previousData = mockTrafficData[mockTrafficData.length - 2]
+  const totalVisits = trafficData.reduce((sum, data) => sum + data.visits, 0)
+  const totalPageviews = trafficData.reduce((sum, data) => sum + data.pageviews, 0)
+  const totalBandwidth = trafficData.reduce((sum, data) => sum + data.bandwidth, 0)
 
   return (
     <div className="space-y-6">
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <Users className="w-8 h-8 text-blue-400" />
-                <Badge className="bg-green-500/20 text-green-300">
-                  +{getChangePercentage(latestData.visitors, previousData.visitors)}%
-                </Badge>
-              </div>
-              <h3 className="text-2xl font-bold mb-1">{currentStats.totalVisitors.toLocaleString()}</h3>
-              <p className="text-gray-400 text-sm">Total Visitors</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <Eye className="w-8 h-8 text-green-400" />
-                <Badge className="bg-green-500/20 text-green-300">
-                  +{getChangePercentage(latestData.pageViews, previousData.pageViews)}%
-                </Badge>
-              </div>
-              <h3 className="text-2xl font-bold mb-1">{currentStats.totalPageViews.toLocaleString()}</h3>
-              <p className="text-gray-400 text-sm">Page Views</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <TrendingDown className="w-8 h-8 text-orange-400" />
-                <Badge className="bg-red-500/20 text-red-300">+2.1%</Badge>
-              </div>
-              <h3 className="text-2xl font-bold mb-1">{currentStats.bounceRate}%</h3>
-              <p className="text-gray-400 text-sm">Bounce Rate</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <Clock className="w-8 h-8 text-purple-400" />
-                <Badge className="bg-green-500/20 text-green-300">+12.3%</Badge>
-              </div>
-              <h3 className="text-2xl font-bold mb-1">{currentStats.avgSessionDuration}</h3>
-              <p className="text-gray-400 text-sm">Avg. Session</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <Wifi className="w-8 h-8 text-cyan-400" />
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              </div>
-              <h3 className="text-2xl font-bold mb-1">{currentStats.onlineUsers}</h3>
-              <p className="text-gray-400 text-sm">Online Now</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Traffic Chart */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BarChart3 className="w-5 h-5" />
-            <span>Traffic Overview (Last 7 Days)</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {mockTrafficData.slice(-7).map((data, index) => (
-              <motion.div
-                key={data.date}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 rounded-lg bg-white/5"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="text-sm font-medium w-20">{data.date.split("-").slice(1).join("/")}</div>
-                  <div className="flex items-center space-x-6">
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-4 h-4 text-blue-400" />
-                      <span className="text-sm">{data.visitors.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Eye className="w-4 h-4 text-green-400" />
-                      <span className="text-sm">{data.pageViews.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <HardDrive className="w-4 h-4 text-orange-400" />
-                      <span className="text-sm">{data.bandwidth} GB</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="w-32 bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full"
-                    style={{ width: `${(data.visitors / Math.max(...mockTrafficData.map((d) => d.visitors))) * 100}%` }}
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Top Pages and Visitors */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader>
-            <CardTitle>Top Pages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockTopPages.map((page, index) => (
-                <motion.div
-                  key={page.path}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 rounded-lg bg-white/5"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-blue-500/20 rounded flex items-center justify-center text-xs font-bold text-blue-300">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <div className="font-medium">{page.path}</div>
-                      <div className="text-sm text-gray-400">{page.views.toLocaleString()} views</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">{page.percentage}%</div>
-                    <div className="w-16 bg-gray-700 rounded-full h-1 mt-1">
-                      <div className="bg-blue-500 h-1 rounded-full" style={{ width: `${page.percentage}%` }} />
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="custom-card">
+          <CardContent className="p-6 text-center">
+            <Users className="w-8 h-8 text-accent-blue mx-auto mb-2" />
+            <h3 className="text-2xl font-bold text-accent-blue">{totalVisits.toLocaleString()}</h3>
+            <p className="text-muted-foreground text-sm">Total Visits</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader>
-            <CardTitle>Visitors by Country</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockVisitors.map((visitor, index) => (
-                <motion.div
-                  key={visitor.country}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 rounded-lg bg-white/5"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-xl">{visitor.flag}</span>
-                    <div>
-                      <div className="font-medium">{visitor.country}</div>
-                      <div className="text-sm text-gray-400">{visitor.visitors.toLocaleString()} visitors</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">{visitor.percentage}%</div>
-                    <div className="w-16 bg-gray-700 rounded-full h-1 mt-1">
-                      <div className="bg-green-500 h-1 rounded-full" style={{ width: `${visitor.percentage}%` }} />
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+        <Card className="custom-card">
+          <CardContent className="p-6 text-center">
+            <Globe className="w-8 h-8 text-accent-green mx-auto mb-2" />
+            <h3 className="text-2xl font-bold text-accent-green">{totalPageviews.toLocaleString()}</h3>
+            <p className="text-muted-foreground text-sm">Total Pageviews</p>
+          </CardContent>
+        </Card>
+
+        <Card className="custom-card">
+          <CardContent className="p-6 text-center">
+            <HardDrive className="w-8 h-8 text-accent-orange mx-auto mb-2" />
+            <h3 className="text-2xl font-bold text-accent-orange">{totalBandwidth.toLocaleString()} MB</h3>
+            <p className="text-muted-foreground text-sm">Bandwidth Used</p>
+          </CardContent>
+        </Card>
+
+        <Card className="custom-card">
+          <CardContent className="p-6 text-center">
+            <Zap className="w-8 h-8 text-accent-purple mx-auto mb-2" />
+            <h3 className="text-2xl font-bold text-accent-purple">2.5 min</h3>
+            <p className="text-muted-foreground text-sm">Avg. Session Duration</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* System Performance */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-        <CardHeader>
-          <CardTitle>System Performance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <div className="text-center">
-              <Cpu className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{systemMetrics.cpuUsage.toFixed(1)}%</div>
-              <div className="text-gray-400 text-sm">CPU Usage</div>
-              <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                  style={{ width: `${systemMetrics.cpuUsage}%` }}
-                />
-              </div>
-            </div>
+      <Tabs defaultValue="traffic" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-card border-border rounded-lg p-1 mb-6">
+          <TabsTrigger
+            value="traffic"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Traffic
+          </TabsTrigger>
+          <TabsTrigger
+            value="visitors"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Visitors
+          </TabsTrigger>
+          <TabsTrigger
+            value="pages"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Top Pages
+          </TabsTrigger>
+          <TabsTrigger
+            value="referrers"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Referrers
+          </TabsTrigger>
+          <TabsTrigger
+            value="settings"
+            className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+          >
+            Settings
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="text-center">
-              <MemoryStick className="w-8 h-8 text-green-400 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{systemMetrics.memoryUsage}%</div>
-              <div className="text-gray-400 text-sm">Memory</div>
-              <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
-                <div
-                  className="bg-green-500 h-2 rounded-full transition-all duration-1000"
-                  style={{ width: `${systemMetrics.memoryUsage}%` }}
-                />
-              </div>
-            </div>
+        <TabsContent value="traffic" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="custom-card">
+              <CardHeader>
+                <CardTitle className="text-foreground">Website Visits</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trafficData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="timestamp" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="visits"
+                      stroke="hsl(var(--accent-blue))"
+                      strokeWidth={2}
+                      name="Visits"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-            <div className="text-center">
-              <HardDrive className="w-8 h-8 text-orange-400 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{systemMetrics.diskUsage}%</div>
-              <div className="text-gray-400 text-sm">Disk Usage</div>
-              <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
-                <div className="bg-orange-500 h-2 rounded-full" style={{ width: `${systemMetrics.diskUsage}%` }} />
-              </div>
-            </div>
-
-            <div className="text-center">
-              <TrendingUp className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{systemMetrics.networkIn.toFixed(1)}</div>
-              <div className="text-gray-400 text-sm">Network In (MB/s)</div>
-            </div>
-
-            <div className="text-center">
-              <TrendingDown className="w-8 h-8 text-cyan-400 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{systemMetrics.networkOut.toFixed(1)}</div>
-              <div className="text-gray-400 text-sm">Network Out (MB/s)</div>
-            </div>
+            <Card className="custom-card">
+              <CardHeader>
+                <CardTitle className="text-foreground">Pageviews & Bandwidth</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={trafficData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="timestamp" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="pageviews"
+                      stroke="hsl(var(--accent-green))"
+                      fill="hsl(var(--accent-green))"
+                      fillOpacity={0.3}
+                      name="Pageviews"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="bandwidth"
+                      stroke="hsl(var(--accent-orange))"
+                      fill="hsl(var(--accent-orange))"
+                      fillOpacity={0.3}
+                      name="Bandwidth (MB)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="visitors" className="space-y-6">
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="text-foreground">Visitors by Country</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={visitorData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="visits"
+                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    >
+                      {visitorData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      itemStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--muted-foreground))" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {visitorData.map((entry) => (
+                    <div key={entry.country} className="flex items-center space-x-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                      <span className="text-muted-foreground">{entry.country}</span>
+                      <span className="font-medium text-foreground">{entry.visits.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pages" className="space-y-6">
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="text-foreground">Top Pages by Pageviews</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-border/50">
+                    <tr className="text-left">
+                      <th className="p-4 font-medium table-header">Page Path</th>
+                      <th className="p-4 font-medium table-header">Pageviews</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topPages.map((page, index) => (
+                      <tr
+                        key={index}
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        <td className="p-4 font-medium text-foreground">{page.path}</td>
+                        <td className="p-4 text-muted-foreground">{page.pageviews.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="referrers" className="space-y-6">
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="text-foreground">Top Referrers</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-border/50">
+                    <tr className="text-left">
+                      <th className="p-4 font-medium table-header">Domain</th>
+                      <th className="p-4 font-medium table-header">Visits</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topReferrers.map((referrer, index) => (
+                      <tr
+                        key={index}
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                      >
+                        <td className="p-4 font-medium text-foreground">{referrer.domain}</td>
+                        <td className="p-4 text-muted-foreground">{referrer.visits.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-6">
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="text-foreground">Analytics Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-foreground">Data Retention</h3>
+                  <p className="text-sm text-muted-foreground">How long to keep analytics data</p>
+                </div>
+                <Input defaultValue="365" className="w-24 input-field" placeholder="Days" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-foreground">Exclude IP Addresses</h3>
+                  <p className="text-sm text-muted-foreground">Exclude internal traffic from statistics</p>
+                </div>
+                <Input placeholder="Comma separated IPs" className="w-64 input-field" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-foreground">Email Reports</h3>
+                  <p className="text-sm text-muted-foreground">Receive weekly or monthly traffic reports</p>
+                </div>
+                <Button className="btn-gradient">Enabled</Button>
+              </div>
+
+              <div className="pt-6 border-t border-border/50">
+                <Button className="btn-gradient">Save Settings</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -1,33 +1,21 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-  Globe,
-  Plus,
-  Trash2,
-  Edit,
-  Shield,
-  RefreshCw,
-  ExternalLink,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-} from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Globe, Plus, Trash2, RefreshCw, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 interface Domain {
   id: string
   name: string
-  status: "active" | "pending" | "expired"
-  registrar: string
-  expires: string
-  autoRenew: boolean
-  sslStatus: "active" | "expired" | "none"
-  dnsStatus: "active" | "error"
+  type: "Primary" | "Addon" | "Subdomain"
+  status: "Active" | "Pending" | "Expired"
+  expiry: string
 }
 
 interface Subdomain {
@@ -50,32 +38,23 @@ const mockDomains: Domain[] = [
   {
     id: "1",
     name: "limitless.com",
-    status: "active",
-    registrar: "Namecheap",
-    expires: "2025-01-15",
-    autoRenew: true,
-    sslStatus: "active",
-    dnsStatus: "active",
+    type: "Primary",
+    status: "Active",
+    expiry: "2025-01-15",
   },
   {
     id: "2",
     name: "limitlessinfotech.com",
-    status: "active",
-    registrar: "GoDaddy",
-    expires: "2024-12-20",
-    autoRenew: false,
-    sslStatus: "expired",
-    dnsStatus: "active",
+    type: "Addon",
+    status: "Pending",
+    expiry: "2024-12-20",
   },
   {
     id: "3",
     name: "limitless.dev",
-    status: "pending",
-    registrar: "Cloudflare",
-    expires: "2025-03-10",
-    autoRenew: true,
-    sslStatus: "none",
-    dnsStatus: "error",
+    type: "Subdomain",
+    status: "Expired",
+    expiry: "2025-03-10",
   },
 ]
 
@@ -144,6 +123,91 @@ export default function DomainManager() {
     domain: "limitless.com",
     documentRoot: "/public_html/",
   })
+  const [newDomainName, setNewDomainName] = useState("")
+  const [newDomainType, setNewDomainType] = useState<Domain["type"]>("Addon")
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const fetchDomains = async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/cpanel/domains")
+      const data = await response.json()
+      if (data.success) {
+        setDomains(data.domains)
+      } else {
+        throw new Error(data.error || "Failed to fetch domains.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load domains.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddDomain = async () => {
+    if (!newDomainName.trim()) {
+      toast({ title: "Error", description: "Domain name is required.", variant: "destructive" })
+      return
+    }
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/cpanel/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add", name: newDomainName, type: newDomainType }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({ title: "Success!", description: "Domain added successfully." })
+        setDomains((prev) => [...prev, data.domain])
+        setNewDomainName("")
+      } else {
+        throw new Error(data.error || "Failed to add domain.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteDomain = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this domain? This action cannot be undone.")) {
+      return
+    }
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/cpanel/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete", id }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({ title: "Success!", description: "Domain deleted successfully." })
+        setDomains((prev) => prev.filter((domain) => domain.id !== id))
+      } else {
+        throw new Error(data.error || "Failed to delete domain.")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const createSubdomain = () => {
     if (newSubdomainForm.name.trim()) {
@@ -161,65 +225,50 @@ export default function DomainManager() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "active":
-        return <CheckCircle className="w-4 h-4 text-green-400" />
-      case "pending":
-        return <AlertTriangle className="w-4 h-4 text-yellow-400" />
-      case "expired":
-      case "error":
-        return <XCircle className="w-4 h-4 text-red-400" />
+      case "Active":
+        return <Badge className="bg-accent-green/20 text-accent-green font-mono">Active</Badge>
+      case "Pending":
+        return <Badge className="bg-accent-blue/20 text-accent-blue font-mono">Pending</Badge>
+      case "Expired":
+        return <Badge className="bg-destructive/20 text-destructive font-mono">Expired</Badge>
       default:
-        return <XCircle className="w-4 h-4 text-gray-400" />
+        return <Badge className="bg-muted/20 text-muted-foreground font-mono">Unknown</Badge>
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500/20 text-green-300"
-      case "pending":
-        return "bg-yellow-500/20 text-yellow-300"
-      case "expired":
-      case "error":
-        return "bg-red-500/20 text-red-300"
-      default:
-        return "bg-gray-500/20 text-gray-300"
-    }
-  }
+  useEffect(() => {
+    fetchDomains()
+  }, [])
 
   return (
     <div className="space-y-6">
       {/* Domain Manager Header */}
-      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+      <Card className="custom-card">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Globe className="w-5 h-5" />
+          <CardTitle className="flex items-center space-x-2 text-foreground">
+            <Globe className="w-5 h-5 text-primary" />
             <span>Domain Manager</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-4">
+          <div className="flex flex-wrap gap-4">
             <Button
               onClick={() => setActiveTab("domains")}
-              className={`${
-                activeTab === "domains" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
+              className={cn(activeTab === "domains" ? "btn-gradient" : "btn-outline-primary")}
             >
               <Globe className="w-4 h-4 mr-2" />
               Domains
             </Button>
             <Button
               onClick={() => setActiveTab("subdomains")}
-              className={`${
-                activeTab === "subdomains" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"
-              }`}
+              className={cn(activeTab === "subdomains" ? "btn-gradient" : "btn-outline-primary")}
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-2" />
               Subdomains
             </Button>
             <Button
               onClick={() => setActiveTab("dns")}
-              className={`${activeTab === "dns" ? "bg-blue-500/20 border-blue-500/30" : "bg-white/5 border-white/10"}`}
+              className={cn(activeTab === "dns" ? "btn-gradient" : "btn-outline-primary")}
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               DNS Records
@@ -229,90 +278,134 @@ export default function DomainManager() {
       </Card>
 
       {activeTab === "domains" && (
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
-          <CardHeader>
-            <CardTitle>Domain List</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b border-white/10">
-                  <tr className="text-left">
-                    <th className="p-4 font-medium">Domain</th>
-                    <th className="p-4 font-medium">Status</th>
-                    <th className="p-4 font-medium">SSL</th>
-                    <th className="p-4 font-medium">DNS</th>
-                    <th className="p-4 font-medium">Registrar</th>
-                    <th className="p-4 font-medium">Expires</th>
-                    <th className="p-4 font-medium">Auto Renew</th>
-                    <th className="p-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {domains.map((domain, index) => (
-                    <motion.tr
-                      key={domain.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="border-b border-white/5 hover:bg-white/5"
-                    >
-                      <td className="p-4 font-medium">{domain.name}</td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(domain.status)}
-                          <Badge className={getStatusColor(domain.status)}>{domain.status}</Badge>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(domain.sslStatus)}
-                          <Badge className={getStatusColor(domain.sslStatus)}>{domain.sslStatus}</Badge>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(domain.dnsStatus)}
-                          <Badge className={getStatusColor(domain.dnsStatus)}>{domain.dnsStatus}</Badge>
-                        </div>
-                      </td>
-                      <td className="p-4 text-gray-400">{domain.registrar}</td>
-                      <td className="p-4 text-gray-400">{domain.expires}</td>
-                      <td className="p-4">
-                        <Badge
-                          className={domain.autoRenew ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"}
+        <>
+          {/* Add New Domain */}
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-foreground">
+                <Plus className="w-5 h-5 text-primary" />
+                <span>Add New Domain</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label htmlFor="domainName" className="block text-sm font-medium text-muted-foreground mb-2">
+                  Domain Name
+                </label>
+                <Input
+                  id="domainName"
+                  placeholder="e.g., yournewsite.com"
+                  value={newDomainName}
+                  onChange={(e) => setNewDomainName(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label htmlFor="domainType" className="block text-sm font-medium text-muted-foreground mb-2">
+                  Domain Type
+                </label>
+                <Select value={newDomainType} onValueChange={(value) => setNewDomainType(value as Domain["type"])}>
+                  <SelectTrigger id="domainType" className="input-field">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="Primary" className="hover:bg-muted/50">
+                      Primary
+                    </SelectItem>
+                    <SelectItem value="Addon" className="hover:bg-muted/50">
+                      Addon
+                    </SelectItem>
+                    <SelectItem value="Subdomain" className="hover:bg-muted/50">
+                      Subdomain
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleAddDomain} disabled={isLoading} className="btn-gradient">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" /> Add Domain
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Existing Domains */}
+          <Card className="custom-card">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-foreground">
+                <Globe className="w-5 h-5 text-primary" />
+                <span>Existing Domains</span>
+                <Button onClick={fetchDomains} disabled={isLoading} className="btn-outline-primary">
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  <span className="sr-only">Refresh</span>
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-border/50">
+                    <tr className="text-left">
+                      <th className="p-4 font-medium table-header">Domain Name</th>
+                      <th className="p-4 font-medium table-header">Type</th>
+                      <th className="p-4 font-medium table-header">Status</th>
+                      <th className="p-4 font-medium table-header">Expiry Date</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {domains.length === 0 && !isLoading ? (
+                      <tr>
+                        <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                          No domains found.
+                        </td>
+                      </tr>
+                    ) : (
+                      domains.map((domain, index) => (
+                        <tr
+                          key={domain.id}
+                          className="table-row animate-fade-in-up"
+                          style={{ animationDelay: `${index * 0.05}s` }}
                         >
-                          {domain.autoRenew ? "Enabled" : "Disabled"}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                            <Shield className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                            <RefreshCw className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                          <td className="p-4 font-medium text-foreground">{domain.name}</td>
+                          <td className="p-4 text-muted-foreground">{domain.type}</td>
+                          <td className="p-4">{getStatusIcon(domain.status)}</td>
+                          <td className="p-4 text-muted-foreground">{domain.expiry}</td>
+                          <td className="p-4">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteDomain(domain.id)}
+                              disabled={isLoading}
+                              className="btn-outline-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {activeTab === "subdomains" && (
         <>
           {/* Create Subdomain */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Create Subdomain</CardTitle>
+              <CardTitle className="text-foreground">Create Subdomain</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -320,15 +413,15 @@ export default function DomainManager() {
                   placeholder="Subdomain name"
                   value={newSubdomainForm.name}
                   onChange={(e) => setNewSubdomainForm((prev) => ({ ...prev, name: e.target.value }))}
-                  className="bg-white/5 border-white/10"
+                  className="input-field"
                 />
                 <select
                   value={newSubdomainForm.domain}
                   onChange={(e) => setNewSubdomainForm((prev) => ({ ...prev, domain: e.target.value }))}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-md focus:border-blue-500/50 focus:outline-none text-white"
+                  className="input-field"
                 >
                   {domains.map((domain) => (
-                    <option key={domain.id} value={domain.name} className="bg-slate-800">
+                    <option key={domain.id} value={domain.name} className="bg-dark-blue-800">
                       {domain.name}
                     </option>
                   ))}
@@ -337,12 +430,9 @@ export default function DomainManager() {
                   placeholder="Document root"
                   value={newSubdomainForm.documentRoot}
                   onChange={(e) => setNewSubdomainForm((prev) => ({ ...prev, documentRoot: e.target.value }))}
-                  className="bg-white/5 border-white/10"
+                  className="input-field"
                 />
-                <Button
-                  onClick={createSubdomain}
-                  className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
-                >
+                <Button onClick={createSubdomain} className="btn-gradient">
                   <Plus className="w-4 h-4 mr-2" />
                   Create
                 </Button>
@@ -351,51 +441,46 @@ export default function DomainManager() {
           </Card>
 
           {/* Subdomains List */}
-          <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+          <Card className="custom-card">
             <CardHeader>
-              <CardTitle>Subdomains</CardTitle>
+              <CardTitle className="text-foreground">Subdomains</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="border-b border-white/10">
+                  <thead className="border-b border-border/50">
                     <tr className="text-left">
-                      <th className="p-4 font-medium">Subdomain</th>
-                      <th className="p-4 font-medium">Full Domain</th>
-                      <th className="p-4 font-medium">Document Root</th>
-                      <th className="p-4 font-medium">Created</th>
-                      <th className="p-4 font-medium">Actions</th>
+                      <th className="p-4 font-medium table-header">Subdomain</th>
+                      <th className="p-4 font-medium table-header">Full Domain</th>
+                      <th className="p-4 font-medium table-header">Document Root</th>
+                      <th className="p-4 font-medium table-header">Created</th>
+                      <th className="p-4 font-medium table-header">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {subdomains.map((subdomain, index) => (
-                      <motion.tr
+                      <tr
                         key={subdomain.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="border-b border-white/5 hover:bg-white/5"
+                        className="table-row animate-fade-in-up"
+                        style={{ animationDelay: `${index * 0.05}s` }}
                       >
-                        <td className="p-4 font-medium">{subdomain.name}</td>
-                        <td className="p-4 text-blue-400">
+                        <td className="p-4 font-medium text-foreground">{subdomain.name}</td>
+                        <td className="p-4 text-accent-blue">
                           {subdomain.name}.{subdomain.domain}
                         </td>
-                        <td className="p-4 text-gray-400 font-mono text-sm">{subdomain.documentRoot}</td>
-                        <td className="p-4 text-gray-400">{subdomain.created}</td>
+                        <td className="p-4 text-muted-foreground font-mono text-sm">{subdomain.documentRoot}</td>
+                        <td className="p-4 text-muted-foreground">{subdomain.created}</td>
                         <td className="p-4">
                           <div className="flex items-center space-x-2">
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                              <ExternalLink className="w-4 h-4" />
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
+                              <Plus className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="hover:bg-red-500/10 text-red-400">
+                            <Button size="sm" variant="ghost" className="hover:bg-muted/10">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -406,48 +491,49 @@ export default function DomainManager() {
       )}
 
       {activeTab === "dns" && (
-        <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+        <Card className="custom-card">
           <CardHeader>
-            <CardTitle>DNS Records</CardTitle>
+            <CardTitle className="flex items-center space-x-2 text-foreground">
+              <Globe className="w-5 h-5 text-primary" />
+              <span>DNS Management</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-white/10">
+                <thead className="border-b border-border/50">
                   <tr className="text-left">
-                    <th className="p-4 font-medium">Type</th>
-                    <th className="p-4 font-medium">Name</th>
-                    <th className="p-4 font-medium">Value</th>
-                    <th className="p-4 font-medium">TTL</th>
-                    <th className="p-4 font-medium">Actions</th>
+                    <th className="p-4 font-medium table-header">Type</th>
+                    <th className="p-4 font-medium table-header">Name</th>
+                    <th className="p-4 font-medium table-header">Value</th>
+                    <th className="p-4 font-medium table-header">TTL</th>
+                    <th className="p-4 font-medium table-header">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dnsRecords.map((record, index) => (
-                    <motion.tr
+                    <tr
                       key={record.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="border-b border-white/5 hover:bg-white/5"
+                      className="table-row animate-fade-in-up"
+                      style={{ animationDelay: `${index * 0.05}s` }}
                     >
                       <td className="p-4">
-                        <Badge className="bg-blue-500/20 text-blue-300 font-mono">{record.type}</Badge>
+                        <Badge className="bg-accent-blue/20 text-accent-blue font-mono">{record.type}</Badge>
                       </td>
-                      <td className="p-4 font-medium">{record.name}</td>
-                      <td className="p-4 text-gray-400 font-mono text-sm">{record.value}</td>
-                      <td className="p-4 text-gray-400">{record.ttl}s</td>
+                      <td className="p-4 font-medium text-foreground">{record.name}</td>
+                      <td className="p-4 text-muted-foreground font-mono text-sm">{record.value}</td>
+                      <td className="p-4 text-muted-foreground">{record.ttl}s</td>
                       <td className="p-4">
                         <div className="flex items-center space-x-2">
-                          <Button size="sm" variant="ghost" className="hover:bg-white/10">
-                            <Edit className="w-4 h-4" />
+                          <Button size="sm" variant="ghost" className="hover:bg-muted/10">
+                            <Plus className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="hover:bg-red-500/10 text-red-400">
+                          <Button size="sm" variant="ghost" className="hover:bg-destructive/10 text-destructive">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   ))}
                 </tbody>
               </table>

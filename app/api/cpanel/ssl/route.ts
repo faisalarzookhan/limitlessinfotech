@@ -1,108 +1,90 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { AuthService } from "@/lib/auth"
+import { NextResponse } from "next/server"
 
-const mockSSLCertificates = [
+// Mock data for SSL certificates
+let mockSslCertificates = [
   {
-    id: "1",
-    domain: "limitless.com",
+    id: "ssl_1",
+    domain: "limitlessinfotech.com",
     issuer: "Let's Encrypt",
-    expires: "2024-04-15T00:00:00Z",
-    status: "valid",
-    auto_renew: true,
-    created_at: "2024-01-15T00:00:00Z",
+    status: "Active",
+    expiryDate: "2024-10-15",
+    autoRenew: true,
   },
   {
-    id: "2",
-    domain: "*.limitless.com",
-    issuer: "Let's Encrypt",
-    expires: "2024-03-20T00:00:00Z",
-    status: "expiring",
-    auto_renew: true,
-    created_at: "2024-01-20T00:00:00Z",
+    id: "ssl_2",
+    domain: "clientportal.net",
+    issuer: "Comodo",
+    status: "Active",
+    expiryDate: "2025-03-20",
+    autoRenew: false,
+  },
+  {
+    id: "ssl_3",
+    domain: "dev.limitlessinfotech.com",
+    issuer: "Self-Signed",
+    status: "Expired",
+    expiryDate: "2024-01-01",
+    autoRenew: false,
   },
 ]
 
-export async function GET(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
-    }
-
-    const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const domain = searchParams.get("domain")
-    const status = searchParams.get("status")
-
-    let certificates = mockSSLCertificates
-
-    if (domain) {
-      certificates = certificates.filter((c) => c.domain === domain || c.domain === `*.${domain}`)
-    }
-
-    if (status) {
-      certificates = certificates.filter((c) => c.status === status)
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: certificates,
-    })
-  } catch (error) {
-    console.error("Get SSL certificates error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
+export async function GET() {
+  return NextResponse.json({ success: true, certificates: mockSslCertificates })
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
-    }
+export async function POST(request: Request) {
+  const { action, domain, id, autoRenew } = await request.json()
 
-    const token = authHeader.substring(7)
-    const user = AuthService.verifyToken(token)
-
-    if (!user) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { domain, type = "letsencrypt" } = body
-
+  if (action === "install") {
     if (!domain) {
-      return NextResponse.json({ error: "Domain is required" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Domain is required for installation" }, { status: 400 })
     }
-
-    // Simulate SSL certificate installation
-    const newCertificate = {
-      id: Date.now().toString(),
+    const newCert = {
+      id: `ssl_${Date.now()}`,
       domain,
-      issuer: type === "letsencrypt" ? "Let's Encrypt" : "Custom CA",
-      expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days
-      status: "installing",
-      auto_renew: type === "letsencrypt",
-      created_at: new Date().toISOString(),
-      created_by: user.id,
+      issuer: "Let's Encrypt", // Mock issuer
+      status: "Installing",
+      expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // 90 days from now
+      autoRenew: true,
     }
+    mockSslCertificates.push(newCert)
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: newCertificate,
-        message: "SSL certificate installation started",
-      },
-      { status: 201 },
-    )
-  } catch (error) {
-    console.error("Install SSL certificate error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    // Simulate installation
+    setTimeout(() => {
+      const installedCert = mockSslCertificates.find((c) => c.id === newCert.id)
+      if (installedCert) {
+        installedCert.status = "Active"
+      }
+      console.log(`SSL for ${domain} installed.`)
+    }, 3000)
+
+    return NextResponse.json({ success: true, message: "SSL installation initiated.", certificate: newCert })
+  } else if (action === "delete") {
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Certificate ID is required" }, { status: 400 })
+    }
+    const initialLength = mockSslCertificates.length
+    mockSslCertificates = mockSslCertificates.filter((cert) => cert.id !== id)
+    if (mockSslCertificates.length < initialLength) {
+      return NextResponse.json({ success: true, message: `Certificate ${id} deleted.` })
+    } else {
+      return NextResponse.json({ success: false, error: "Certificate not found" }, { status: 404 })
+    }
+  } else if (action === "toggle_auto_renew") {
+    if (!id || typeof autoRenew !== "boolean") {
+      return NextResponse.json(
+        { success: false, error: "Certificate ID and autoRenew status are required" },
+        { status: 400 },
+      )
+    }
+    const cert = mockSslCertificates.find((c) => c.id === id)
+    if (cert) {
+      cert.autoRenew = autoRenew
+      return NextResponse.json({ success: true, message: `Auto-renew for ${cert.domain} set to ${autoRenew}.` })
+    } else {
+      return NextResponse.json({ success: false, error: "Certificate not found" }, { status: 404 })
+    }
+  } else {
+    return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 })
   }
 }

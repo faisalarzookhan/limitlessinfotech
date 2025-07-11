@@ -1,27 +1,64 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Next.js
+.next/
+out/
 
-# dependencies
-/node_modules
+# node_modules
+node_modules/
 
-# next.js
-/.next/
-/out/
+# TypeScript cache
+.tsbuildinfo
 
-# production
-/build
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.staging.local
 
-# debug
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-.env*
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
 
-# vercel
-.vercel
+# macOS
+.DS_Store
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# npm package manager
+package-lock.json*
+pnpm-lock.yaml*
+yarn.lock*
+
+# Vercel
+.vercel/
+
+# Docker
+.dockerignore
+Dockerfile.local
+
+# Build artifacts
+dist/
+build/
+
+# Thumbnails
+.thumbnails/
+
+# Uploads
+public/uploads/
+
+# Database backups
+*.sql.gz
+*.bak
+
+# Test reports
+coverage/
+.nyc_output/
+
+# Custom
+*.log

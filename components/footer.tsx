@@ -1,195 +1,143 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Facebook, Twitter, Linkedin, Instagram, Mail, MapPin, Phone } from "lucide-react"
+import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin } from "lucide-react"
 
 export default function Footer() {
   return (
-    <footer className="bg-dark-blue-900 border-t border-dark-blue-700 text-foreground">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="py-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div>
-            <Link href="/" className="flex items-center space-x-2 mb-6">
-              <Image src="/images/logo.png" alt="Limitless Infotech" width={50} height={50} className="w-12 h-12" />
-              <div>
-                <p className="text-xl font-bold leading-none text-white">LIMITLESS INFOTECH</p>
-                <p className="text-xs text-accent-blue">SOLUTION'S PVT LTD</p>
-              </div>
+    <footer className="bg-dark-blue-800 text-muted-foreground py-12 border-t border-dark-blue-700">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+        {/* Company Info */}
+        <div className="space-y-4">
+          <Link href="/" className="flex items-center space-x-3 mb-4">
+            <Image src="/images/logo.png" alt="Limitless Infotech Solutions" width={40} height={40} />
+            <span className="text-2xl font-bold text-foreground">Limitless Infotech</span>
+          </Link>
+          <p className="text-sm leading-relaxed">
+            Empowering Businesses with Technology that is Secure, Unique, and Limitless. We are architects of
+            transformation.
+          </p>
+          <div className="flex space-x-4 mt-4">
+            <Link href="#" className="text-accent-blue hover:text-accent-blue/80 transition-colors">
+              <Facebook className="w-6 h-6" />
+              <span className="sr-only">Facebook</span>
             </Link>
-            <p className="text-muted-foreground mb-6">
-              Empowering businesses with technology that is secure, unique, and limitless.
-            </p>
-            <div className="flex space-x-4">
-              <a href="https://facebook.com" className="text-muted-foreground hover:text-accent-blue transition-colors">
-                <Facebook className="h-5 w-5" />
-                <span className="sr-only">Facebook</span>
-              </a>
-              <a href="https://twitter.com" className="text-muted-foreground hover:text-accent-cyan transition-colors">
-                <Twitter className="h-5 w-5" />
-                <span className="sr-only">Twitter</span>
-              </a>
-              <a href="https://linkedin.com" className="text-muted-foreground hover:text-blue-600 transition-colors">
-                <Linkedin className="h-5 w-5" />
-                <span className="sr-only">LinkedIn</span>
-              </a>
-              <a href="https://instagram.com" className="text-muted-foreground hover:text-pink-500 transition-colors">
-                <Instagram className="h-5 w-5" />
-                <span className="sr-only">Instagram</span>
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-6">Quick Links</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/services" className="text-muted-foreground hover:text-primary transition-colors">
-                  Services
-                </Link>
-              </li>
-              <li>
-                <Link href="/projects" className="text-muted-foreground hover:text-primary transition-colors">
-                  Projects
-                </Link>
-              </li>
-              <li>
-                <Link href="/team" className="text-muted-foreground hover:text-primary transition-colors">
-                  Our Team
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs" className="text-muted-foreground hover:text-primary transition-colors">
-                  Documentation
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact Us
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-6">Services</h3>
-            <ul className="space-y-3">
-              <li>
-                <Link
-                  href="/services/web-development"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Web Development
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/services/mobile-app-development"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Mobile App Development
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/services/custom-software"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Custom Software
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/services/crm-solutions"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  CRM Solutions
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/services/business-automation"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Business Automation
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/services/ai-integration"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  AI Integration
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-6">Contact Us</h3>
-            <ul className="space-y-4">
-              <li className="flex items-start">
-                <MapPin className="h-5 w-5 text-accent-blue mr-3 mt-0.5" />
-                <span className="text-muted-foreground">
-                  123 Tech Park, Silicon Valley
-                  <br />
-                  California, USA 94043
-                </span>
-              </li>
-              <li className="flex items-center">
-                <Phone className="h-5 w-5 text-accent-blue mr-3" />
-                <a href="tel:+1234567890" className="text-muted-foreground hover:text-primary transition-colors">
-                  +1 (234) 567-890
-                </a>
-              </li>
-              <li className="flex items-center">
-                <Mail className="h-5 w-5 text-accent-blue mr-3" />
-                <a
-                  href="mailto:info@limitlessinfotech.com"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  info@limitlessinfotech.com
-                </a>
-              </li>
-            </ul>
-            <div className="mt-6">
-              <h4 className="text-sm font-medium text-white mb-2">Subscribe to our newsletter</h4>
-              <div className="flex">
-                <Input type="email" placeholder="Your email" className="rounded-r-none input-field" />
-                <Button className="rounded-l-none btn-gradient">Subscribe</Button>
-              </div>
-            </div>
+            <Link href="#" className="text-accent-cyan hover:text-accent-cyan/80 transition-colors">
+              <Twitter className="w-6 h-6" />
+              <span className="sr-only">Twitter</span>
+            </Link>
+            <Link href="#" className="text-accent-purple hover:text-accent-purple/80 transition-colors">
+              <Linkedin className="w-6 h-6" />
+              <span className="sr-only">LinkedIn</span>
+            </Link>
           </div>
         </div>
 
-        <div className="py-6 border-t border-dark-blue-700 text-center md:flex md:justify-between md:text-left">
-          <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()} Limitless Infotech Solution Pvt. Ltd. All rights reserved.
-          </p>
-          <div className="mt-4 md:mt-0">
-            <ul className="flex justify-center md:justify-end space-x-6 text-sm">
-              <li>
-                <Link href="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
-                  Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link href="/sitemap" className="text-muted-foreground hover:text-primary transition-colors">
-                  Sitemap
-                </Link>
-              </li>
-            </ul>
-          </div>
+        {/* Quick Links */}
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Quick Links</h3>
+          <ul className="space-y-2">
+            <li>
+              <Link href="/about" className="hover:text-primary transition-colors text-sm">
+                About Us
+              </Link>
+            </li>
+            <li>
+              <Link href="/services" className="hover:text-primary transition-colors text-sm">
+                Our Services
+              </Link>
+            </li>
+            <li>
+              <Link href="/projects" className="hover:text-primary transition-colors text-sm">
+                Our Projects
+              </Link>
+            </li>
+            <li>
+              <Link href="/team" className="hover:text-primary transition-colors text-sm">
+                Our Team
+              </Link>
+            </li>
+            <li>
+              <Link href="/careers" className="hover:text-primary transition-colors text-sm">
+                Careers
+              </Link>
+            </li>
+            <li>
+              <Link href="/contact" className="hover:text-primary transition-colors text-sm">
+                Contact Us
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        {/* Services */}
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Services</h3>
+          <ul className="space-y-2">
+            <li>
+              <Link href="/services/web-development" className="hover:text-primary transition-colors text-sm">
+                Web Development
+              </Link>
+            </li>
+            <li>
+              <Link href="/services/mobile-app-development" className="hover:text-primary transition-colors text-sm">
+                Mobile App Development
+              </Link>
+            </li>
+            <li>
+              <Link href="/services/custom-software" className="hover:text-primary transition-colors text-sm">
+                Custom Software
+              </Link>
+            </li>
+            <li>
+              <Link href="/services/crm-solutions" className="hover:text-primary transition-colors text-sm">
+                CRM Solutions
+              </Link>
+            </li>
+            <li>
+              <Link href="/api-docs" className="hover:text-primary transition-colors text-sm">
+                API Development
+              </Link>
+            </li>
+            <li>
+              <Link href="/cpanel" className="hover:text-primary transition-colors text-sm">
+                Hosting & CPanel
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        {/* Contact Info */}
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Contact Info</h3>
+          <address className="not-italic space-y-3 text-sm">
+            <div className="flex items-center space-x-2">
+              <MapPin className="w-5 h-5 text-accent-blue flex-shrink-0" />
+              <span>123 Tech Avenue, Suite 400, Innovation City, CA 90210, USA</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Phone className="w-5 h-5 text-accent-green flex-shrink-0" />
+              <span>+1 (555) 123-4567</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Mail className="w-5 h-5 text-accent-orange flex-shrink-0" />
+              <span>info@limitless.com</span>
+            </div>
+          </address>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 border-t border-dark-blue-700 mt-8 pt-8 text-center text-sm">
+        <p>&copy; {new Date().getFullYear()} Limitless Infotech Solutions. All rights reserved.</p>
+        <div className="flex justify-center space-x-4 mt-2">
+          <Link href="/privacy" className="hover:text-primary transition-colors">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-primary transition-colors">
+            Terms of Service
+          </Link>
+          <Link href="/cookies" className="hover:text-primary transition-colors">
+            Cookie Policy
+          </Link>
         </div>
       </div>
     </footer>
