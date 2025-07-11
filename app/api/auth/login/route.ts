@@ -1,30 +1,57 @@
 import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
+import type { NextRequest } from "next/server"
+import { AuthService } from "@/lib/auth"
+import { validateEmail, validatePassword } from "@/lib/validation"
 
-export async function POST(request: Request) {
-  const { email, password } = await request.json()
+export async function POST(request: NextRequest) {
+  try {
+    const { email, password } = await request.json()
 
-  if (!email || !password) {
-    return NextResponse.json({ success: false, error: "Email and password are required" }, { status: 400 })
-  }
+    if (!email || !validateEmail(email)) {
+      return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
+    }
+    if (!password || !validatePassword(password)) {
+      return NextResponse.json({ error: "Password is required" }, { status: 400 })
+    }
 
-  // In a real application, you would:
-  // 1. Query your database to find a user with the given email.
-  // 2. Hash the provided password and compare it with the stored hashed password.
-  // 3. If credentials are valid, generate a JWT.
+    // In a real application:
+    // 1. Fetch user from database by email.
+    // 2. Compare hashed password.
+    // 3. If valid, generate a JWT or session token.
 
-  // Mock authentication for demo purposes
-  if (email === "test@example.com" && password === "password123") {
-    const user = { id: "user_123", email: "test@example.com", role: "user" }
-    const token = jwt.sign(user, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRES_IN || "1h" })
+    // Mocking authentication for demonstration purposes:
+    if (email === "admin@example.com" && password === "password123") {
+      const user = { id: "user_admin", email: "admin@example.com", role: "admin" }
+      const token = await AuthService.generateToken(user)
 
-    return NextResponse.json({ success: true, token })
-  } else if (email === "admin@example.com" && password === "admin123") {
-    const user = { id: "admin_456", email: "admin@example.com", role: "admin" }
-    const token = jwt.sign(user, process.env.JWT_SECRET!, { expiresIn: process.env.JWT_EXPIRES_IN || "1h" })
+      const response = NextResponse.json({ success: true, message: "Login successful", user })
+      // Set the token as an HttpOnly cookie for security
+      response.cookies.set("auth_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        path: "/",
+      })
+      return response
+    } else if (email === "user@example.com" && password === "password123") {
+      const user = { id: "user_standard", email: "user@example.com", role: "user" }
+      const token = await AuthService.generateToken(user)
 
-    return NextResponse.json({ success: true, token })
-  } else {
-    return NextResponse.json({ success: false, error: "Invalid credentials" }, { status: 401 })
+      const response = NextResponse.json({ success: true, message: "Login successful", user })
+      response.cookies.set("auth_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        path: "/",
+      })
+      return response
+    } else {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+  } catch (error) {
+    console.error("Login error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

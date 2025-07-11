@@ -1,8 +1,18 @@
 import type { NextRequest } from "next/server"
+import { LRUCache } from "lru-cache"
 
 interface RateLimitConfig {
   windowMs: number // Time window in milliseconds
   maxRequests: number // Maximum requests per window
+}
+
+interface RateLimitOptions {
+  interval: number // in milliseconds
+  uniqueTokens: number // max requests per interval
+}
+
+interface RateLimiter {
+  check: (token: string) => Promise<boolean>
 }
 
 class RateLimiter {
@@ -54,6 +64,45 @@ class RateLimiter {
   getResetTime(identifier: string): number | null {
     const userRequests = this.requests.get(identifier)
     return userRequests?.resetTime || null
+  }
+}
+
+/**
+ * Creates a simple in-memory rate limiter using LRU cache.
+ * Useful for protecting API endpoints from abuse.
+ *
+ * @param options - Configuration for the rate limiter.
+ * @param options.interval - The time window in milliseconds (e.g., 60 * 1000 for 1 minute).
+ * @param options.uniqueTokens - The maximum number of requests allowed within the interval for a unique token (e.g., IP address).
+ * @returns A rate limiter object with a `check` method.
+ */
+export function rateLimit(options: RateLimitOptions): RateLimiter {
+  const { interval, uniqueTokens } = options
+
+  const cache = new LRUCache<string, number[]>({
+    max: 500, // Max number of unique tokens to store
+    ttl: interval, // Time to live for each entry
+  })
+
+  return {
+    check: async (token: string): Promise<boolean> => {
+      const now = Date.now()
+      let requests = cache.get(token) || []
+
+      // Filter out requests older than the interval
+      requests = requests.filter((timestamp) => timestamp > now - interval)
+
+      if (requests.length >= uniqueTokens) {
+        // Rate limit exceeded
+        return true
+      }
+
+      // Add current request timestamp
+      requests.push(now)
+      cache.set(token, requests)
+
+      return false
+    },
   }
 }
 

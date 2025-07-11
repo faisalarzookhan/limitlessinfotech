@@ -1,135 +1,93 @@
-import { Server as SocketIOServer } from "socket.io"
-import type { Server as HTTPServer } from "http"
-import { AuthService } from "./auth"
+"use client"
 
-export class WebSocketService {
-  private io: SocketIOServer
+// This file is a placeholder for WebSocket client-side logic.
+// In a real-time application, you would typically use a library like Socket.IO,
+// or a native WebSocket API to establish and manage connections.
 
-  constructor(server: HTTPServer) {
-    this.io = new SocketIOServer(server, {
-      cors: {
-        origin: process.env.NEXT_PUBLIC_APP_URL,
-        methods: ["GET", "POST"],
-      },
-    })
+// Example (conceptual) of how a WebSocket client might be structured:
 
-    this.setupMiddleware()
-    this.setupEventHandlers()
-  }
+/*
+import { useEffect, useState, useCallback } from 'react';
 
-  private setupMiddleware() {
-    this.io.use(async (socket, next) => {
-      try {
-        const token = socket.handshake.auth.token
-        const user = AuthService.verifyToken(token)
-
-        if (!user) {
-          return next(new Error("Authentication error"))
-        }
-
-        socket.data.user = user
-        next()
-      } catch (error) {
-        next(new Error("Authentication error"))
-      }
-    })
-  }
-
-  private setupEventHandlers() {
-    this.io.on("connection", (socket) => {
-      const user = socket.data.user
-
-      // Join user to their personal room
-      socket.join(`user:${user.id}`)
-
-      // Join user to their role-based room
-      socket.join(`role:${user.role}`)
-
-      // Handle chat room joining
-      socket.on("join-room", (roomId: string) => {
-        socket.join(`room:${roomId}`)
-        socket.to(`room:${roomId}`).emit("user-joined", {
-          userId: user.id,
-          userName: user.name,
-        })
-      })
-
-      // Handle chat messages
-      socket.on(
-        "send-message",
-        (data: {
-          roomId: string
-          content: string
-          type: "text" | "file"
-          fileUrl?: string
-          fileName?: string
-        }) => {
-          const message = {
-            id: Date.now().toString(),
-            roomId: data.roomId,
-            senderId: user.id,
-            senderName: user.name,
-            content: data.content,
-            type: data.type,
-            fileUrl: data.fileUrl,
-            fileName: data.fileName,
-            timestamp: new Date().toISOString(),
-          }
-
-          // Broadcast to room
-          this.io.to(`room:${data.roomId}`).emit("new-message", message)
-
-          // Save to database (implement this)
-          // DatabaseService.saveChatMessage(message)
-        },
-      )
-
-      // Handle typing indicators
-      socket.on("typing", (data: { roomId: string; isTyping: boolean }) => {
-        socket.to(`room:${data.roomId}`).emit("user-typing", {
-          userId: user.id,
-          userName: user.name,
-          isTyping: data.isTyping,
-        })
-      })
-
-      // Handle notifications
-      socket.on(
-        "send-notification",
-        (data: {
-          targetUserId: string
-          type: string
-          title: string
-          message: string
-          actionUrl?: string
-        }) => {
-          this.io.to(`user:${data.targetUserId}`).emit("notification", {
-            id: Date.now().toString(),
-            type: data.type,
-            title: data.title,
-            message: data.message,
-            actionUrl: data.actionUrl,
-            timestamp: new Date().toISOString(),
-          })
-        },
-      )
-
-      socket.on("disconnect", () => {
-        console.log(`User ${user.name} disconnected`)
-      })
-    })
-  }
-
-  // Public methods for sending notifications
-  public sendNotificationToUser(userId: string, notification: any) {
-    this.io.to(`user:${userId}`).emit("notification", notification)
-  }
-
-  public sendNotificationToRole(role: string, notification: any) {
-    this.io.to(`role:${role}`).emit("notification", notification)
-  }
-
-  public broadcastToRoom(roomId: string, event: string, data: any) {
-    this.io.to(`room:${roomId}`).emit(event, data)
-  }
+interface WebSocketMessage {
+  type: string;
+  payload: any;
 }
+
+interface WebSocketHook {
+  isConnected: boolean;
+  lastMessage: WebSocketMessage | null;
+  sendMessage: (message: WebSocketMessage) => void;
+  error: Event | null;
+}
+
+export function useWebSocket(url: string): WebSocketHook {
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  const [error, setError] = useState<Event | null>(null);
+
+  useEffect(() => {
+    const socket = new WebSocket(url);
+
+    socket.onopen = () => {
+      console.log('WebSocket connected');
+      setIsConnected(true);
+      setError(null);
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const message: WebSocketMessage = JSON.parse(event.data);
+        setLastMessage(message);
+      } catch (e) {
+        console.error('Failed to parse WebSocket message:', e);
+        setLastMessage({ type: 'error', payload: 'Invalid message format' });
+      }
+    };
+
+    socket.onerror = (event) => {
+      console.error('WebSocket error:', event);
+      setError(event);
+      setIsConnected(false);
+    };
+
+    socket.onclose = () => {
+      console.log('WebSocket disconnected');
+      setIsConnected(false);
+      setLastMessage(null);
+    };
+
+    setWs(socket);
+
+    return () => {
+      socket.close();
+    };
+  }, [url]);
+
+  const sendMessage = useCallback((message: WebSocketMessage) => {
+    if (ws && isConnected) {
+      ws.send(JSON.stringify(message));
+    } else {
+      console.warn('WebSocket not connected. Message not sent:', message);
+    }
+  }, [ws, isConnected]);
+
+  return { isConnected, lastMessage, sendMessage, error };
+}
+
+// Example usage in a component:
+// const { isConnected, lastMessage, sendMessage } = useWebSocket('ws://localhost:3001/ws');
+// useEffect(() => {
+//   if (lastMessage) {
+//     console.log('Received:', lastMessage);
+//   }
+// }, [lastMessage]);
+// const handleClick = () => {
+//   sendMessage({ type: 'chat', payload: 'Hello from client!' });
+// };
+*/
+
+// For the purpose of this project, this file remains conceptual as
+// full WebSocket server implementation is outside the scope of a frontend-focused v0 generation.
+// However, the presence of this file indicates an intention for real-time features.

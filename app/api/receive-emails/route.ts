@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
 interface Email {
   id: string
@@ -82,42 +83,27 @@ export async function GET() {
   return NextResponse.json({ success: true, emails: sortedEmails })
 }
 
-export async function POST(request: Request) {
-  const { action, emailId, data } = await request.json()
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    console.log("Received inbound email (mock):", body)
 
-  if (action === "markAsRead") {
-    const emailIndex = mockEmails.findIndex((e) => e.id === emailId)
-    if (emailIndex !== -1) {
-      mockEmails[emailIndex].isRead = true
-      return NextResponse.json({ success: true, emails: mockEmails })
-    }
-    return NextResponse.json({ success: false, error: "Email not found" }, { status: 404 })
-  } else if (action === "toggleStar") {
-    const emailIndex = mockEmails.findIndex((e) => e.id === emailId)
-    if (emailIndex !== -1) {
-      mockEmails[emailIndex].isStarred = !mockEmails[emailIndex].isStarred
-      return NextResponse.json({ success: true, emails: mockEmails })
-    }
-    return NextResponse.json({ success: false, error: "Email not found" }, { status: 404 })
-  } else if (action === "addEmail") {
-    // Used to simulate adding sent emails to the list
-    if (data) {
-      const newEmail: Email = {
-        id: `email_${Date.now()}`,
-        from: data.from,
-        to: data.to,
-        subject: data.subject,
-        content: data.content,
-        timestamp: new Date().toISOString(),
-        isRead: true, // Sent emails are considered read
-        isStarred: false,
-        isImportant: false,
-      }
-      mockEmails.push(newEmail)
-      return NextResponse.json({ success: true, emails: mockEmails })
-    }
-    return NextResponse.json({ success: false, error: "Missing email data" }, { status: 400 })
+    // You would typically parse the email content, attachments, sender, recipient, etc.
+    // and then process it (e.g., save to database, trigger a workflow, etc.)
+
+    // Example of expected body from an email service webhook:
+    // {
+    //   "from": "sender@example.com",
+    //   "to": "inbox@yourdomain.com",
+    //   "subject": "Test Email",
+    //   "text": "This is the plain text body of the email.",
+    //   "html": "<html><body><p>This is the <b>HTML</b> body of the email.</p></body></html>",
+    //   "attachments": [...]
+    // }
+
+    return NextResponse.json({ success: true, message: "Email received and processed (mock)." }, { status: 200 })
+  } catch (error) {
+    console.error("Error receiving email (mock):", error)
+    return NextResponse.json({ error: "Failed to process inbound email (mock)." }, { status: 500 })
   }
-
-  return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 })
 }

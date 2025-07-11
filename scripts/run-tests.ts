@@ -1,71 +1,31 @@
-#!/usr/bin/env node
+import { ComprehensiveTestFramework } from "./test-framework"
 
-/**
- * Test Runner Script
- * Run this script to execute the comprehensive testing framework
- */
+async function runTests() {
+  const baseUrl = process.argv[2] || "http://localhost:3000"
 
-import { WebsiteTestFramework } from "./test-framework"
-import fs from "fs"
-import path from "path"
+  console.log(`🔍 Testing website: ${baseUrl}`)
+  console.log("=".repeat(50))
 
-async function main() {
-  const args = process.argv.slice(2)
-  const baseUrl = args[0] || "http://localhost:3000"
-
-  console.log(`🚀 Starting comprehensive testing for: ${baseUrl}`)
-  console.log("=".repeat(60))
-
-  const framework = new WebsiteTestFramework(baseUrl)
+  const testFramework = new ComprehensiveTestFramework(baseUrl)
 
   try {
-    // Run all tests
-    const results = await framework.runAllTests()
-
-    // Generate report
-    const report = framework.generateReport()
+    const report = await testFramework.runAllTests()
 
     // Save report to file
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-    const reportPath = path.join(process.cwd(), `test-report-${timestamp}.md`)
-
-    fs.writeFileSync(reportPath, report)
-
-    console.log(`\n📊 Test Results Summary:`)
-    console.log("=".repeat(40))
-
-    for (const suite of results) {
-      const passRate = ((suite.summary.passed / suite.summary.total) * 100).toFixed(1)
-      console.log(`${suite.name}: ${suite.summary.passed}/${suite.summary.total} (${passRate}%)`)
-
-      if (suite.summary.failed > 0) {
-        console.log(`  ❌ ${suite.summary.failed} failed`)
-      }
-      if (suite.summary.warnings > 0) {
-        console.log(`  ⚠️  ${suite.summary.warnings} warnings`)
-      }
-    }
+    const fs = require("fs")
+    const reportPath = `test-report-${new Date().toISOString().split("T")[0]}.json`
+    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2))
 
     console.log(`\n📄 Full report saved to: ${reportPath}`)
 
-    // Exit with error code if there are failures
-    const totalFailed = results.reduce((sum, suite) => sum + suite.summary.failed, 0)
-    if (totalFailed > 0) {
-      console.log(`\n❌ Testing completed with ${totalFailed} failures`)
+    // Exit with error code if tests failed
+    if (report.summary.failed > 0) {
       process.exit(1)
-    } else {
-      console.log(`\n✅ All tests passed successfully!`)
-      process.exit(0)
     }
   } catch (error) {
-    console.error("❌ Testing failed with error:", error)
+    console.error("❌ Test execution failed:", error)
     process.exit(1)
   }
 }
 
-// Run if called directly
-if (require.main === module) {
-  main()
-}
-
-export { main as runTests }
+runTests()

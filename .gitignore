@@ -1,12 +1,13 @@
 # Next.js
 .next/
 out/
+.vercel/
 
-# node_modules
+# Dependencies
 node_modules/
 
-# TypeScript cache
-.tsbuildinfo
+# TypeScript
+*.tsbuildinfo
 
 # Environment variables
 .env.local
@@ -20,45 +21,30 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.pnpm-store/
 
-# IDEs and editors
+# IDEs and other tools
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
-
-# macOS
+*.log
+*.backup
+*.swp
 .DS_Store
+Thumbs.db
 
-# npm package manager
-package-lock.json*
-pnpm-lock.yaml*
-yarn.lock*
-
-# Vercel
-.vercel/
-
-# Docker
-.dockerignore
-Dockerfile.local
+# Uploads
+/public/uploads/
 
 # Build artifacts
 dist/
 build/
 
-# Thumbnails
-.thumbnails/
-
-# Uploads
-public/uploads/
-
-# Database backups
-*.sql.gz
-*.bak
-
 # Test reports
 coverage/
 .nyc_output/
 
-# Custom
-*.log
+# Database backups
+*.sql
+*.bak

@@ -1,65 +1,61 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { AuthService } from "./lib/auth"
+import { AuthService } from "@/lib/auth"
+import { authConfig } from "@/lib/auth.config"
 
-// Define protected routes
-const protectedRoutes = {
-  admin: ["/admin"],
-  employee: ["/employee"],
-  client: ["/demo"],
-  cpanel: ["/cpanel"],
-}
+// Define public routes that do not require authentication
+const publicRoutes = authConfig.publicRoutes
+const authRoutes = authConfig.authRoutes
+const apiAuthPrefix = authConfig.apiAuthPrefix
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  const token = request.cookies.get("auth-token")?.value
+export async function middleware(request: NextRequest) {
+  const { nextUrl } = request
+  const isAuthenticated = await AuthService.isAuthenticated(request)
+  const user = isAuthenticated ? await AuthService.verifyToken(request.cookies.get("auth_token")?.value || "") : null
 
-  // Check if route requires authentication
-  const requiresAuth = Object.values(protectedRoutes)
-    .flat()
-    .some((route) => pathname.startsWith(route))
+  const isApiAuthRoute = nextUrl.pathname.startsWith(apiAuthPrefix)
+  const isPublicRoute = publicRoutes.includes(nextUrl.pathname)
+  const isAuthRoute = authRoutes.includes(nextUrl.pathname)
 
-  if (!requiresAuth) {
+  // Allow API auth routes to proceed without authentication check
+  if (isApiAuthRoute) {
     return NextResponse.next()
   }
 
-  // If no token, redirect to login
-  if (!token) {
-    const loginUrl = new URL("/", request.url)
-    loginUrl.searchParams.set("redirect", pathname)
-    return NextResponse.redirect(loginUrl)
+  // Redirect authenticated users from auth routes to dashboard
+  if (isAuthRoute) {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL("/admin", nextUrl)) // Redirect to admin dashboard
+    }
+    return NextResponse.next()
   }
 
-  // Verify token
-  const user = AuthService.verifyToken(token)
-  if (!user) {
-    const loginUrl = new URL("/", request.url)
-    loginUrl.searchParams.set("redirect", pathname)
-    const response = NextResponse.redirect(loginUrl)
-    response.cookies.delete("auth-token")
-    return response
+  // Protect private routes
+  if (!isAuthenticated && !isPublicRoute) {
+    let callbackUrl = nextUrl.pathname
+    if (nextUrl.search) {
+      callbackUrl += nextUrl.search
+    }
+
+    const encodedCallbackUrl = encodeURIComponent(callbackUrl)
+    return NextResponse.redirect(new URL(`/auth/login?callbackUrl=${encodedCallbackUrl}`, nextUrl))
   }
 
-  // Check role-based access
-  if (pathname.startsWith("/admin") && user.role !== "admin") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url))
-  }
-
-  if (pathname.startsWith("/employee") && user.role !== "employee" && user.role !== "admin") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url))
-  }
-
-  if (pathname.startsWith("/demo") && user.role !== "client" && user.role !== "admin") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url))
-  }
-
-  if (pathname.startsWith("/cpanel") && user.role !== "admin") {
-    return NextResponse.redirect(new URL("/unauthorized", request.url))
+  // Role-based access control (example: protect /admin and /cpanel)
+  if (isAuthenticated && user) {
+    if (nextUrl.pathname.startsWith("/admin") && user.role !== "admin") {
+      return NextResponse.redirect(new URL("/unauthorized", nextUrl))
+    }
+    if (nextUrl.pathname.startsWith("/cpanel") && user.role !== "admin") {
+      return NextResponse.redirect(new URL("/unauthorized", nextUrl))
+    }
   }
 
   return NextResponse.next()
 }
 
+// Configuration for the middleware
 export const config = {
-  matcher: ["/admin/:path*", "/employee/:path*", "/demo/:path*", "/cpanel/:path*"],
+  // Matcher to run middleware on all paths except static files and _next assets
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 }

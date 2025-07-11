@@ -1,37 +1,57 @@
 import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { put } from "@vercel/blob" // Assuming @vercel/blob is installed
 
-export async function POST(request: Request) {
-  // This is a simplified mock for file upload.
-  // In a real application, you would parse FormData, handle file streams,
-  // and store the file in a persistent storage solution (e.g., Vercel Blob, S3, local disk).
+export async function POST(request: NextRequest) {
+  try {
+    const formData = await request.formData()
+    const file = formData.get("file") as File | null
 
-  const formData = await request.formData()
-  const file = formData.get("file") as File | null
-  const path = formData.get("path") as string | null
+    if (!file) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
+    }
 
-  if (!file) {
-    return NextResponse.json({ success: false, error: "No file uploaded" }, { status: 400 })
+    // Basic file type validation (example)
+    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"]
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: "Unsupported file type" }, { status: 400 })
+    }
+
+    // Basic file size validation (example: max 5MB)
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: "File size exceeds limit (5MB)" }, { status: 400 })
+    }
+
+    // In a real application, you would save the file to a persistent storage.
+    // This example uses Vercel Blob for demonstration.
+    // Ensure BLOB_READ_WRITE_TOKEN is set in your environment variables.
+
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.warn("BLOB_READ_WRITE_TOKEN is not set. Skipping actual file upload to Vercel Blob.")
+      return NextResponse.json({
+        success: true,
+        message: "File upload simulated (BLOB_READ_WRITE_TOKEN not set).",
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+      })
+    }
+
+    const blob = await put(file.name, file, {
+      access: "public", // or 'private'
+    })
+
+    console.log("File uploaded to Vercel Blob:", blob)
+
+    return NextResponse.json({
+      success: true,
+      message: "File uploaded successfully!",
+      url: blob.url,
+      pathname: blob.pathname,
+    })
+  } catch (error) {
+    console.error("File upload error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  if (!path) {
-    return NextResponse.json({ success: false, error: "Upload path is required" }, { status: 400 })
-  }
-
-  // Simulate file processing
-  console.log(`Received file: ${file.name}, size: ${file.size} bytes, to path: ${path}`)
-
-  // In a real scenario, you'd save the file and return its URL/details
-  const mockFileUrl = `/uploads/${file.name}` // Placeholder URL
-
-  return NextResponse.json({
-    success: true,
-    message: `File '${file.name}' uploaded successfully to '${path}'`,
-    file: {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      url: mockFileUrl,
-      path: path,
-    },
-  })
 }

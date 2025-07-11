@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { AuthService } from "@/lib/auth"
+
+interface ApprovalRequest {
+  id: string
+  type: "project" | "expense" | "leave" | "access"
+  requester: string
+  details: string
+  status: "pending" | "approved" | "rejected"
+  createdAt: string
+  updatedAt: string | null
+  approverId: string | null
+}
 
 // Mock data for approvals
 const mockApprovals = [
@@ -48,21 +60,82 @@ const mockApprovals = [
   },
 ]
 
+// Mock data for approval requests
+const mockApprovalRequests: ApprovalRequest[] = [
+  {
+    id: "apr_1",
+    type: "project",
+    requester: "John Doe",
+    details: "New website development for Acme Corp.",
+    status: "pending",
+    createdAt: "2024-07-01T10:00:00Z",
+    updatedAt: null,
+    approverId: null,
+  },
+  {
+    id: "apr_2",
+    type: "expense",
+    requester: "Jane Smith",
+    details: "Software license renewal ($500)",
+    status: "pending",
+    createdAt: "2024-07-02T14:30:00Z",
+    updatedAt: null,
+    approverId: null,
+  },
+  {
+    id: "apr_3",
+    type: "leave",
+    requester: "Alex Martinez",
+    details: "Vacation leave from 2024-08-01 to 2024-08-10",
+    status: "approved",
+    createdAt: "2024-06-20T09:00:00Z",
+    updatedAt: "2024-06-22T11:00:00Z",
+    approverId: "admin_1",
+  },
+  {
+    id: "apr_4",
+    type: "access",
+    requester: "Emily Davis",
+    details: "Access to production database",
+    status: "rejected",
+    createdAt: "2024-06-25T16:00:00Z",
+    updatedAt: "2024-06-26T10:00:00Z",
+    approverId: "admin_1",
+  },
+]
+
 export async function GET(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    const user = await AuthService.verifyToken(token)
+
+    if (!user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get("projectId")
-    const status = searchParams.get("status")
+    const statusFilter = searchParams.get("status") as ApprovalRequest["status"] | null
+    const typeFilter = searchParams.get("type") as ApprovalRequest["type"] | null
     const assignedTo = searchParams.get("assignedTo")
 
     let filteredApprovals = mockApprovals
+    let filteredRequests = mockApprovalRequests
 
     if (projectId) {
       filteredApprovals = filteredApprovals.filter((approval) => approval.projectId === projectId)
     }
 
-    if (status) {
-      filteredApprovals = filteredApprovals.filter((approval) => approval.status === status)
+    if (statusFilter) {
+      filteredRequests = filteredRequests.filter((req) => req.status === statusFilter)
+    }
+    if (typeFilter) {
+      filteredRequests = filteredRequests.filter((req) => req.type === typeFilter)
     }
 
     if (assignedTo) {
@@ -72,59 +145,114 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       approvals: filteredApprovals,
-      total: filteredApprovals.length,
+      approvalRequests: filteredRequests,
+      totalApprovals: filteredApprovals.length,
+      totalApprovalRequests: filteredRequests.length,
     })
   } catch (error) {
     console.error("Get approvals error:", error)
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { projectId, title, description, type, priority, assignedTo, dueDate, clientVisible } = body
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
+    }
 
-    if (!projectId || !title || !description || !type || !assignedTo) {
+    const token = authHeader.substring(7)
+    const user = await AuthService.verifyToken(token)
+
+    if (!user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { action, id, status, type, requester, details } = body
+
+    if (!action) {
+      return NextResponse.json({ error: "Action is required" }, { status: 400 })
+    }
+
+    if (action === "update_status") {
+      if (!id || !status) {
+        return NextResponse.json({ error: "Request ID and status are required" }, { status: 400 })
+      }
+
+      const requestIndex = mockApprovalRequests.findIndex((req) => req.id === id)
+      if (requestIndex === -1) {
+        return NextResponse.json({ error: "Approval request not found" }, { status: 404 })
+      }
+
+      if (!["pending", "approved", "rejected"].includes(status)) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 })
+      }
+
+      mockApprovalRequests[requestIndex] = {
+        ...mockApprovalRequests[requestIndex],
+        status,
+        updatedAt: new Date().toISOString(),
+        approverId: user.id, // Assuming user.id is available from the token
+      }
+
+      return NextResponse.json({
+        success: true,
+        approval: mockApprovalRequests[requestIndex],
+        message: `Approval request ${id} ${status} successfully.`,
+      })
+    }
+
+    if (action === "create") {
+      if (!type || !requester || !details) {
+        return NextResponse.json({ error: "Type, requester, and details are required" }, { status: 400 })
+      }
+
+      const newRequest: ApprovalRequest = {
+        id: `apr_${Date.now()}`,
+        type,
+        requester,
+        details,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        approverId: null,
+      }
+
+      mockApprovalRequests.unshift(newRequest) // Add to the beginning
+
       return NextResponse.json(
-        { success: false, error: "Missing required fields: projectId, title, description, type, assignedTo" },
-        { status: 400 },
+        {
+          success: true,
+          approval: newRequest,
+          message: "Approval request created successfully.",
+        },
+        { status: 201 },
       )
     }
 
-    const newApproval = {
-      id: `approval_${Date.now()}`,
-      projectId,
-      title,
-      description,
-      type,
-      status: "pending",
-      priority: priority || "medium",
-      assignedTo: Array.isArray(assignedTo) ? assignedTo : [assignedTo],
-      createdBy: "current_user", // In real app, get from auth
-      createdAt: new Date().toISOString(),
-      dueDate: dueDate || null,
-      clientVisible: clientVisible || false,
-    }
-
-    mockApprovals.push(newApproval)
-
-    return NextResponse.json(
-      {
-        success: true,
-        approval: newApproval,
-        message: "Approval request created successfully",
-      },
-      { status: 201 },
-    )
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 })
   } catch (error) {
-    console.error("Create approval error:", error)
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
+    console.error("Approval API error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    const user = await AuthService.verifyToken(token)
+
+    if (!user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
+
     const body = await request.json()
     const { id, status, rejectionReason, comments } = body
 
@@ -142,7 +270,7 @@ export async function PUT(request: NextRequest) {
       ...mockApprovals[approvalIndex],
       status,
       updatedAt: new Date().toISOString(),
-      updatedBy: "current_user", // In real app, get from auth
+      updatedBy: user.id, // Assuming user.id is available from the token
     }
 
     if (status === "rejected" && rejectionReason) {
@@ -168,6 +296,18 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    const user = await AuthService.verifyToken(token)
+
+    if (!user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 

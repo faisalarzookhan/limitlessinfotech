@@ -5,8 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin/", "/api/", "/cpanel/", "/employee/"],
+      disallow: ["/admin/", "/cpanel/", "/webmail/", "/api/"], // Disallow sensitive areas and APIs
     },
-    sitemap: "https://limitlessinfotech.com/sitemap.xml",
+    sitemap: "https://limitlessinfotech.com/sitemap.xml", // Replace with your actual domain
   }
 }

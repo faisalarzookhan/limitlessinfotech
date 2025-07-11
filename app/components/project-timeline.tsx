@@ -1,12 +1,11 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Loader2, Plus, Edit, Trash2 } from "lucide-react"
+import { Calendar, Loader2, Plus, Edit, Trash2, CheckCircle, Clock, XCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,8 +17,13 @@ interface TimelineEvent {
   date: string
   title: string
   description: string
-  status: "completed" | "in-progress" | "pending" | "blocked"
-  category: string
+  status: "completed" | "in-progress" | "pending" | "failed"
+}
+
+interface ProjectTimelineProps {
+  projectName: string
+  events: TimelineEvent[]
+  setEvents: React.Dispatch<React.SetStateAction<TimelineEvent[]>>
 }
 
 const mockTimelineEvents: TimelineEvent[] = [
@@ -29,7 +33,6 @@ const mockTimelineEvents: TimelineEvent[] = [
     title: "Project Kick-off Meeting",
     description: "Initial meeting with the client to define project scope and objectives.",
     status: "completed",
-    category: "Planning",
   },
   {
     id: "2",
@@ -37,7 +40,6 @@ const mockTimelineEvents: TimelineEvent[] = [
     title: "UI/UX Design Phase",
     description: "Designing wireframes and mockups for the main application screens.",
     status: "completed",
-    category: "Design",
   },
   {
     id: "3",
@@ -45,7 +47,6 @@ const mockTimelineEvents: TimelineEvent[] = [
     title: "Backend API Development",
     description: "Developing RESTful APIs for data management and user authentication.",
     status: "in-progress",
-    category: "Development",
   },
   {
     id: "4",
@@ -53,15 +54,13 @@ const mockTimelineEvents: TimelineEvent[] = [
     title: "Frontend Integration",
     description: "Integrating the designed UI with the backend APIs.",
     status: "pending",
-    category: "Development",
   },
   {
     id: "5",
     date: "2023-04-20",
     title: "Database Schema Finalization",
     description: "Finalizing the database schema based on application requirements.",
-    status: "blocked",
-    category: "Planning",
+    status: "failed",
   },
   {
     id: "6",
@@ -69,15 +68,13 @@ const mockTimelineEvents: TimelineEvent[] = [
     title: "User Acceptance Testing (UAT)",
     description: "Client testing of the application to ensure all requirements are met.",
     status: "pending",
-    category: "Testing",
   },
 ]
 
 const categories = ["Planning", "Design", "Development", "Testing", "Deployment", "Maintenance"]
-const statuses = ["completed", "in-progress", "pending", "blocked"]
+const statuses = ["completed", "in-progress", "pending", "failed"]
 
-export default function ProjectTimeline() {
-  const [events, setEvents] = useState<TimelineEvent[]>(mockTimelineEvents)
+export default function ProjectTimeline({ projectName, events, setEvents }: ProjectTimelineProps) {
   const [isAddingEvent, setIsAddingEvent] = useState(false)
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null)
   const [formState, setFormState] = useState({
@@ -85,7 +82,6 @@ export default function ProjectTimeline() {
     title: "",
     description: "",
     status: "pending" as TimelineEvent["status"],
-    category: "Planning",
   })
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
@@ -97,7 +93,7 @@ export default function ProjectTimeline() {
     setFormState((prev) => ({ ...prev, [id]: value }))
   }
 
-  const handleSelectChange = (value: string, field: "status" | "category") => {
+  const handleSelectChange = (value: string, field: "status") => {
     setFormState((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -107,7 +103,6 @@ export default function ProjectTimeline() {
       title: "",
       description: "",
       status: "pending",
-      category: "Planning",
     })
     setIsAddingEvent(false)
     setEditingEvent(null)
@@ -164,7 +159,6 @@ export default function ProjectTimeline() {
       title: event.title,
       description: event.description,
       status: event.status,
-      category: event.category,
     })
     setIsAddingEvent(true)
   }
@@ -198,13 +192,43 @@ export default function ProjectTimeline() {
     }
   }
 
+  const getStatusIcon = (status: TimelineEvent["status"]) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-5 h-5 text-accent-green" />
+      case "in-progress":
+        return <Loader2 className="w-5 h-5 text-accent-blue animate-spin" />
+      case "pending":
+        return <Clock className="w-5 h-5 text-muted-foreground" />
+      case "failed":
+        return <XCircle className="w-5 h-5 text-destructive" />
+      default:
+        return null
+    }
+  }
+
+  const getStatusBadgeClass = (status: TimelineEvent["status"]) => {
+    switch (status) {
+      case "completed":
+        return "bg-accent-green/20 text-accent-green"
+      case "in-progress":
+        return "bg-accent-blue/20 text-accent-blue"
+      case "pending":
+        return "bg-muted/20 text-muted-foreground"
+      case "failed":
+        return "bg-destructive/20 text-destructive"
+      default:
+        return ""
+    }
+  }
+
   return (
     <Card className="custom-card">
       <CardHeader>
         <CardTitle className="flex items-center justify-between text-foreground">
           <span className="flex items-center space-x-2">
             <Calendar className="w-5 h-5 text-primary" />
-            <span>Project Timeline</span>
+            <span>{projectName}</span>
           </span>
           <Button onClick={() => setIsAddingEvent(true)} className="btn-gradient">
             <Plus className="w-4 h-4 mr-2" />
@@ -283,27 +307,6 @@ export default function ProjectTimeline() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <label htmlFor="category" className="block text-sm font-medium text-muted-foreground mb-2">
-                      Category
-                    </label>
-                    <Select
-                      value={formState.category}
-                      onValueChange={(value) => handleSelectChange(value, "category")}
-                      required
-                    >
-                      <SelectTrigger className="input-field">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-border">
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category} className="hover:bg-muted/50">
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button
@@ -354,24 +357,14 @@ export default function ProjectTimeline() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold text-foreground text-lg">{event.title}</h3>
                     <Badge
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs font-medium",
-                        event.status === "completed"
-                          ? "bg-accent-green/20 text-accent-green"
-                          : event.status === "in-progress"
-                            ? "bg-accent-blue/20 text-accent-blue"
-                            : event.status === "pending"
-                              ? "bg-muted/20 text-muted-foreground"
-                              : "bg-destructive/20 text-destructive",
-                      )}
+                      className={cn("px-3 py-1 rounded-full text-xs font-medium", getStatusBadgeClass(event.status))}
                     >
                       {event.status.replace("-", " ")}
                     </Badge>
                   </div>
                   <p className="text-muted-foreground text-sm mb-2">{event.description}</p>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Date: {event.date}</span>
-                    <span>Category: {event.category}</span>
+                    <span>Date: {new Date(event.date).toLocaleDateString()}</span>
                   </div>
                   <div className="flex justify-end space-x-2 mt-3">
                     <Button
