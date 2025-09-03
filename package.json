@@ -56,7 +56,7 @@
     "lru-cache": "latest",
     "lucide-react": "^0.454.0",
     "nanoid": "latest",
-    "next": "15.2.4",
+    "next": "15.4.7",
     "next-auth": "latest",
     "next-themes": "latest",
     "node-fetch": "latest",
