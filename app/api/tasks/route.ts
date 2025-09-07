@@ -1,61 +1,71 @@
-import { NextResponse } from "next/server"
-import { DatabaseService } from "@/lib/database"
-import { AuthService } from "@/lib/auth"
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+import { auth } from '@/lib/auth';
+import { z } from 'zod';
 
-export async function GET(request: Request) {
-  try {
-    const token = request.headers.get("Authorization")?.split(" ")[1]
-    const user = await AuthService.verifyToken(token)
+const taskSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  assigned_to: z.string(),
+  priority: z.enum(['low', 'medium', 'high']),
+  due_date: z.string().datetime(),
+  tags: z.array(z.string()).optional(),
+});
 
-    if (!user || (user.role !== "admin" && user.role !== "employee")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+export async function GET() {
+  const session = await auth();
 
-    let tasks
-    if (user.role === "admin") {
-      tasks = await DatabaseService.getAllTasks()
-    } else {
-      // employee
-      tasks = await DatabaseService.getTasksByAssignedTo(user.sub)
-    }
-
-    return NextResponse.json(tasks)
-  } catch (error) {
-    console.error("Error fetching tasks:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const { data: tasks, error } = await supabase.from('tasks').select('*');
+
+  if (error) {
+    console.error('Error fetching tasks:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+
+  return NextResponse.json(tasks);
 }
 
 export async function POST(request: Request) {
+  const session = await auth();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const token = request.headers.get("Authorization")?.split(" ")[1]
-    const user = await AuthService.verifyToken(token)
+    const body = await request.json();
+    const { title, description, assigned_to, priority, due_date, tags } = taskSchema.parse(body);
 
-    if (!user || (user.role !== "admin" && user.role !== "employee")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { data: newTask, error } = await supabase
+      .from('tasks')
+      .insert([
+        {
+          title,
+          description,
+          assigned_to,
+          assigned_by: (session.user as any).id,
+          priority,
+          due_date,
+          tags,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating task:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
-    const { title, description, assignedTo, priority, dueDate, tags } = await request.json()
-
-    if (!title || !assignedTo || !priority || !dueDate) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    const newTask = await DatabaseService.createTask({
-      title,
-      description,
-      assigned_to: assignedTo,
-      assigned_by: user.sub, // Assigning user is the current authenticated user
-      priority,
-      due_date: dueDate,
-      created_at: new Date().toISOString(),
-      tags,
-      attachments: [], // Assuming no attachments for now
-    })
-
-    return NextResponse.json(newTask, { status: 201 })
+    return NextResponse.json(newTask, { status: 201 });
   } catch (error) {
-    console.error("Error creating task:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
