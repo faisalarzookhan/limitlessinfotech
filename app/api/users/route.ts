@@ -1,20 +1,20 @@
-import { NextResponse } from "next/server"
-import { DatabaseService } from "@/lib/database"
-import { AuthService } from "@/lib/auth"
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+import { auth } from '@/lib/auth';
 
-export async function GET(request: Request) {
-  try {
-    const token = request.headers.get("Authorization")?.split(" ")[1]
-    const user = await AuthService.verifyToken(token)
+export async function GET() {
+  const session = await auth();
 
-    if (!user || (user.role !== "admin" && user.role !== "employee")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const users = await DatabaseService.getAllUsers()
-    return NextResponse.json(users)
-  } catch (error) {
-    console.error("Error fetching users:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const { data: users, error } = await supabase.from('users').select('*');
+
+  if (error) {
+    console.error('Error fetching users:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+
+  return NextResponse.json(users);
 }

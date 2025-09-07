@@ -1,10 +1,9 @@
 import type { NextAuthConfig } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { getUserByEmail } from "./database"
+import bcrypt from "bcryptjs"
+import { User } from "./database"
 
-/**
- * Central NextAuth configuration.
- * Replace the demo logic in `authorize` with a real user lookup.
- */
 const authConfig: NextAuthConfig = {
   providers: [
     Credentials({
@@ -14,14 +13,23 @@ const authConfig: NextAuthConfig = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials) return null
-        const { email, password } = credentials
+        if (!credentials?.email || !credentials.password) {
+          return null
+        }
 
-        /* ------------------------------------------------------------------
-           TODO: replace with real authentication (DB lookup, bcrypt, etc.)
-        ------------------------------------------------------------------ */
-        if (email === "admin@example.com" && password === "secret") {
-          return { id: "1", name: "Admin", email }
+        const user = await getUserByEmail(credentials.email as string);
+
+        if (!user) {
+          return null
+        }
+
+        const isPasswordCorrect = await bcrypt.compare(
+          credentials.password as string,
+          user.passwordHash
+        );
+
+        if (isPasswordCorrect) {
+          return { id: user.id, name: user.email, email: user.email, role: user.role };
         }
 
         return null
@@ -37,12 +45,16 @@ const authConfig: NextAuthConfig = {
 
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.userId = (user as any).id
+      if (user) {
+        token.sub = user.id
+        token.role = (user as any).role
+      }
       return token
     },
     async session({ session, token }) {
-      if (session.user && token.userId) {
-        ;(session.user as any).id = token.userId
+      if (session.user && token.sub) {
+        session.user.id = token.sub
+        session.user.role = token.role as 'admin' | 'employee' | 'client'
       }
       return session
     },
