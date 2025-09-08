@@ -1,16 +1,16 @@
 {
-  "name": "my-v0-project",
+  "name": "limitless",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "build": "next build",
     "dev": "node server.js",
     "lint": "next lint",
- feature/database-auth-integration
+
     "start": "NODE_ENV=production node server.js",
 
     "start": "next start",
- main
+
     "test": "jest"
   },
   "dependencies": {
