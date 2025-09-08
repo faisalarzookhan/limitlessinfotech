@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { auth } from '@/lib/auth';
 import { z } from 'zod';
+feature/database-auth-integration
 import { logError } from '@/lib/logger';
+
+main
 
 const approvalRequestSchema = z.object({
   type: z.enum(['project', 'expense', 'leave', 'access']),
@@ -21,6 +24,7 @@ export async function GET(request: Request) {
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+feature/database-auth-integration
 
   try {
     const { searchParams } = new URL(request.url);
@@ -48,7 +52,29 @@ export async function GET(request: Request) {
   } catch (error) {
     await logError(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get('status');
+  const type = searchParams.get('type');
+
+  let query = supabase.from('approval_requests').select('*');
+
+  if (status) {
+    query = query.eq('status', status);
   }
+
+  if (type) {
+    query = query.eq('type', type);
+  }
+
+  const { data: approvalRequests, error } = await query;
+
+  if (error) {
+    console.error('Error fetching approval requests:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+
+  return NextResponse.json(approvalRequests);
 }
 
 export async function POST(request: Request) {
@@ -56,8 +82,18 @@ export async function POST(request: Request) {
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+main
   }
 
+feature/database-auth-integration
+export async function POST(request: Request) {
+  const session = await auth();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+ main
   try {
     const body = await request.json();
     const { type, requester, details } = approvalRequestSchema.parse(body);
@@ -77,13 +113,21 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
+ feature/database-auth-integration
         await logError(error);
       return NextResponse.json({ error: 'Error creating approval request' }, { status: 500 });
+      
+      console.error('Error creating approval request:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+ main
     }
 
     return NextResponse.json(newApprovalRequest, { status: 201 });
   } catch (error) {
+ feature/database-auth-integration
     await logError(error);
+
+main
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
@@ -110,13 +154,21 @@ export async function PUT(request: Request) {
       .single();
 
     if (error) {
+ feature/database-auth-integration
         await logError(error);
       return NextResponse.json({ error: 'Error updating approval request' }, { status: 500 });
+
+      console.error('Error updating approval request:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+ main
     }
 
     return NextResponse.json(updatedApprovalRequest);
   } catch (error) {
+ feature/database-auth-integration
     await logError(error);
+
+main
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
@@ -131,6 +183,7 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+feature/database-auth-integration
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
@@ -151,4 +204,21 @@ export async function DELETE(request: Request) {
         await logError(error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+        return NextResponse.json({ error: 'Missing approval ID' }, { status: 400 });
+    }
+
+    const { error } = await supabase.from('approval_requests').delete().eq('id', id);
+
+    if (error) {
+        console.error('Error deleting approval request:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: 'Approval request deleted successfully' });
+main
 }

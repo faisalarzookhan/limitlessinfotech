@@ -25,7 +25,11 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
   return data;
 };
 
+ feature/database-auth-integration
 export const createUser = async (email: string, passwordHash: string): Promise<User> => {
+
+export const createUser = async (email: string, passwordHash: string): Promise<User | null> => {
+ main
   const { data, error } = await supabase
     .from('users')
     .insert([{ id: uuidv4(), email, passwordHash, created_at: new Date() }])
@@ -34,7 +38,11 @@ export const createUser = async (email: string, passwordHash: string): Promise<U
 
   if (error) {
     console.error('Error creating user:', error);
+ feature/database-auth-integration
     throw error;
+
+    return null;
+ main
   }
 
   return data;
