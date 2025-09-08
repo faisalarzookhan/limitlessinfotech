@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -173,7 +171,9 @@ export default function AdminPage() {
             <CardContent>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
+                  <label htmlFor="username" className="sr-only">Username</label>
                   <Input
+                    id="username"
                     type="text"
                     placeholder="Username"
                     value={loginForm.username}
@@ -183,7 +183,9 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
+                  <label htmlFor="password" className="sr-only">Password</label>
                   <Input
+                    id="password"
                     type="password"
                     placeholder="Password"
                     value={loginForm.password}
