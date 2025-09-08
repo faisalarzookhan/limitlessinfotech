@@ -1,54 +1,69 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
-import { Resend } from "resend" // Assuming Resend is installed and configured
-import { validateEmail, validateString } from "@/lib/validation"
+import { NextResponse } from 'next/server';
+import { Resend } from 'resend';
+import { auth } from '@/lib/auth';
+import { z } from 'zod';
+import fs from 'fs/promises';
+import path from 'path';
+import { logError } from '@/lib/logger';
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function POST(request: NextRequest) {
+const sendEmailSchema = z.object({
+  to: z.string().email(),
+  subject: z.string(),
+  template: z.string(),
+  data: z.record(z.string()),
+});
+
+async function getEmailHtml(templateName: string, data: Record<string, string>): Promise<string> {
+  const templatePath = path.join(process.cwd(), 'emails', `${templateName}.html`);
+  let html = await fs.readFile(templatePath, 'utf-8');
+  for (const key in data) {
+    html = html.replace(new RegExp(`{{${key}}}`, 'g'), data[key]);
+  }
+  return html;
+}
+
+export async function POST(request: Request) {
+  const session = await auth();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const { to, subject, html, text, from = "onboarding@resend.dev" } = await request.json()
+    const body = await request.json();
+    const { to, subject, template, data } = sendEmailSchema.parse(body);
 
-    // Basic validation
-    if (!validateEmail(to)) {
-      return NextResponse.json({ error: "A valid 'to' email address is required." }, { status: 400 })
-    }
-    if (!validateString(subject, 1, 255)) {
-      return NextResponse.json({ error: "Subject is required and must be between 1-255 characters." }, { status: 400 })
-    }
-    if (!html && !text) {
-      return NextResponse.json({ error: "Either HTML or plain text body is required." }, { status: 400 })
-    }
-
-    // In a real application, you would use an actual email sending service.
-    // This example uses Resend, but you could use Nodemailer with SMTP, SendGrid, Mailgun, etc.
+    const html = await getEmailHtml(template, data);
 
     if (!process.env.RESEND_API_KEY) {
-      console.warn("RESEND_API_KEY is not set. Skipping actual email sending.")
+      console.warn("RESEND_API_KEY is not set. Skipping actual email sending.");
       return NextResponse.json({
         success: true,
         message: "Email sending simulated (RESEND_API_KEY not set).",
-        mockData: { to, subject, html, text, from },
-      })
+      });
     }
 
-    const { data, error } = await resend.emails.send({
-      from: from,
-      to: to,
-      subject: subject,
-      html: html,
-      text: text,
-    })
+    const { data: responseData, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to,
+      subject,
+      html,
+    });
 
     if (error) {
-      console.error("Resend email error:", error)
-      return NextResponse.json({ error: error.message || "Failed to send email." }, { status: 500 })
+        await logError(error);
+      return NextResponse.json({ error: error.message || "Failed to send email." }, { status: 500 });
     }
 
-    console.log("Email sent successfully via Resend:", data)
-    return NextResponse.json({ success: true, message: "Email sent successfully!", data })
+    console.log("Email sent successfully via Resend:", responseData);
+    return NextResponse.json({ success: true, message: "Email sent successfully!", data: responseData });
   } catch (error) {
-    console.error("Send email API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    await logError(error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
