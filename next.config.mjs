@@ -1,13 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
-    unoptimized: true, // Set to true if you are not using Next.js Image Optimization
+    unoptimized: false, // Set to true if you are not using Next.js Image Optimization
   },
   // Add any other Next.js specific configurations here
   // For example, if you need to handle external packages for server components:
