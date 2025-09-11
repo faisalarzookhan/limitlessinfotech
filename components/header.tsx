@@ -15,6 +15,13 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu, X, Sun, Moon, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
+/**
+ * The main header component for the application.
+ * It includes the company logo, desktop navigation links, a theme toggler,
+ * a "Get Started" button, and a mobile menu (sheet) for smaller screens.
+ * It is a client component that manages its own state for the mobile menu visibility.
+ * This component does not accept any props.
+ */
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false)
   const { setTheme } = useTheme()

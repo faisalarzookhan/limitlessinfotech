@@ -9,6 +9,13 @@ const limiter = rateLimit({
   uniqueTokens: 10, // Max 10 requests per IP per interval
 })
 
+/**
+ * Handles POST requests for contact form submissions.
+ * It validates the form data, applies rate limiting, simulates sending an email,
+ * and returns a mock lead score.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating success or failure.
+ */
 export async function POST(request: NextRequest) {
   try {
     const ip = request.ip || request.headers.get("x-forwarded-for") || "127.0.0.1"

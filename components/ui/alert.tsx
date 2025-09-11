@@ -19,6 +19,10 @@ const alertVariants = cva(
   }
 )
 
+/**
+ * A styled container for displaying important messages.
+ * It comes with predefined variants for different contexts (e.g., default, destructive).
+ */
 const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
@@ -32,6 +36,9 @@ const Alert = React.forwardRef<
 ))
 Alert.displayName = "Alert"
 
+/**
+ * The title for an alert. It should be used inside an `Alert` component.
+ */
 const AlertTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
@@ -44,6 +51,9 @@ const AlertTitle = React.forwardRef<
 ))
 AlertTitle.displayName = "AlertTitle"
 
+/**
+ * The main body of content for an alert. It should be used inside an `Alert` component.
+ */
 const AlertDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>

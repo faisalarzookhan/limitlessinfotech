@@ -3,6 +3,13 @@ import type { NextRequest } from "next/server"
 import { AuthService } from "@/lib/auth"
 import { validateEmail, validatePassword } from "@/lib/validation"
 
+/**
+ * Handles POST requests for user login.
+ * It takes an email and password, validates them, and returns a user object and a JWT if successful.
+ * This is a mock implementation for demonstration purposes.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the user data and sets an auth token cookie, or an error.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
@@ -21,8 +28,8 @@ export async function POST(request: NextRequest) {
 
     // Mocking authentication for demonstration purposes:
     if (email === "admin@example.com" && password === "password123") {
-      const user = { id: "user_admin", email: "admin@example.com", role: "admin" }
-      const token = await AuthService.generateToken(user)
+      const user = { sub: "user_admin", email: "admin@example.com", role: "admin" }
+      const token = await AuthService.sign(user)
 
       const response = NextResponse.json({ success: true, message: "Login successful", user })
       // Set the token as an HttpOnly cookie for security
@@ -35,8 +42,8 @@ export async function POST(request: NextRequest) {
       })
       return response
     } else if (email === "user@example.com" && password === "password123") {
-      const user = { id: "user_standard", email: "user@example.com", role: "user" }
-      const token = await AuthService.generateToken(user)
+      const user = { sub: "user_standard", email: "user@example.com", role: "client" }
+      const token = await AuthService.sign(user)
 
       const response = NextResponse.json({ success: true, message: "Login successful", user })
       response.cookies.set("auth_token", token, {

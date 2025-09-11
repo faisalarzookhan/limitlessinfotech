@@ -63,6 +63,12 @@ const mockDomains = [
   },
 ]
 
+/**
+ * Handles GET requests to fetch mock domain data.
+ * It can return a list of all domains or the DNS records for a specific domain.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the requested domain data.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -112,6 +118,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to manage domains.
+ * It supports adding a new domain and updating DNS records.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating the result of the action.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -200,6 +212,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Handles DELETE requests to remove a domain.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating success or failure.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

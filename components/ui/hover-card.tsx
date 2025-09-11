@@ -5,10 +5,13 @@ import * as HoverCardPrimitive from "@radix-ui/react-hover-card"
 
 import { cn } from "@/lib/utils"
 
+/** The root component for a hover card. */
 const HoverCard = HoverCardPrimitive.Root
 
+/** The trigger that opens the hover card when hovered over. */
 const HoverCardTrigger = HoverCardPrimitive.Trigger
 
+/** The content that is displayed inside the hover card. */
 const HoverCardContent = React.forwardRef<
   React.ElementRef<typeof HoverCardPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof HoverCardPrimitive.Content>

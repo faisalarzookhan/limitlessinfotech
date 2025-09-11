@@ -5,6 +5,7 @@ import * as ResizablePrimitive from "react-resizable-panels"
 
 import { cn } from "@/lib/utils"
 
+/** The root component for a group of resizable panels. */
 const ResizablePanelGroup = ({
   className,
   ...props
@@ -18,13 +19,16 @@ const ResizablePanelGroup = ({
   />
 )
 
+/** A single panel within a resizable panel group. */
 const ResizablePanel = ResizablePrimitive.Panel
 
+/** The handle used to resize panels. */
 const ResizableHandle = ({
   withHandle,
   className,
   ...props
 }: React.ComponentProps<typeof ResizablePrimitive.PanelResizeHandle> & {
+  /** Whether to display a visible grip handle. */
   withHandle?: boolean
 }) => (
   <ResizablePrimitive.PanelResizeHandle

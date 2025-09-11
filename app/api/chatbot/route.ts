@@ -10,6 +10,12 @@ const responses: { [key: string]: string } = {
   default: "I'm sorry, I don't understand. Can you please rephrase your question?",
 }
 
+/**
+ * Handles POST requests for the chatbot.
+ * It takes a user's message and returns a predefined response based on keywords.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the chatbot's reply.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { message } = await request.json()

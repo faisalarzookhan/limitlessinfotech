@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ButtonProps, buttonVariants } from "@/components/ui/button"
 
+/** The main container for a pagination component. */
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
@@ -14,6 +15,7 @@ const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
 )
 Pagination.displayName = "Pagination"
 
+/** The list container for pagination items. */
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
   React.ComponentProps<"ul">
@@ -26,6 +28,7 @@ const PaginationContent = React.forwardRef<
 ))
 PaginationContent.displayName = "PaginationContent"
 
+/** A single list item within the pagination control. */
 const PaginationItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
@@ -35,10 +38,12 @@ const PaginationItem = React.forwardRef<
 PaginationItem.displayName = "PaginationItem"
 
 type PaginationLinkProps = {
+  /** Whether the link represents the current page. */
   isActive?: boolean
 } & Pick<ButtonProps, "size"> &
   React.ComponentProps<"a">
 
+/** A link for a pagination item, styled as a button. */
 const PaginationLink = ({
   className,
   isActive,
@@ -59,6 +64,7 @@ const PaginationLink = ({
 )
 PaginationLink.displayName = "PaginationLink"
 
+/** The "previous page" button for pagination. */
 const PaginationPrevious = ({
   className,
   ...props
@@ -75,6 +81,7 @@ const PaginationPrevious = ({
 )
 PaginationPrevious.displayName = "PaginationPrevious"
 
+/** The "next page" button for pagination. */
 const PaginationNext = ({
   className,
   ...props
@@ -91,6 +98,7 @@ const PaginationNext = ({
 )
 PaginationNext.displayName = "PaginationNext"
 
+/** A component to indicate that there are more pages that are not currently visible. */
 const PaginationEllipsis = ({
   className,
   ...props

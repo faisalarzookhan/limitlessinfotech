@@ -8,13 +8,27 @@ import { cn } from "@/lib/utils"
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
 
+/**
+ * Defines the configuration for a chart's data series.
+ * Each key represents a data series, and the value contains its display properties.
+ */
 export type ChartConfig = {
   [k in string]: {
+    /** The human-readable label for the data series. */
     label?: React.ReactNode
+    /** An optional icon component to display next to the label. */
     icon?: React.ComponentType
   } & (
-    | { color?: string; theme?: never }
-    | { color?: never; theme: Record<keyof typeof THEMES, string> }
+    | {
+        /** A static color for the data series. */
+        color?: string
+        theme?: never
+      }
+    | {
+        color?: never
+        /** A map of theme-specific colors for the data series. */
+        theme: Record<keyof typeof THEMES, string>
+      }
   )
 }
 
@@ -24,6 +38,12 @@ type ChartContextProps = {
 
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
+/**
+ * A custom hook to access the chart's configuration context.
+ * This must be used within a component tree wrapped by `<ChartContainer />`.
+ * @returns The chart configuration.
+ * @throws An error if used outside of a `<ChartContainer />`.
+ */
 function useChart() {
   const context = React.useContext(ChartContext)
 
@@ -34,10 +54,16 @@ function useChart() {
   return context
 }
 
+/**
+ * The main container for a chart. It provides the chart configuration to its children
+ * via context and sets up the necessary styles.
+ */
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
+    /** The chart's configuration object. */
     config: ChartConfig
+    /** The chart components from `recharts` to be rendered. */
     children: React.ComponentProps<
       typeof RechartsPrimitive.ResponsiveContainer
     >["children"]
@@ -102,14 +128,23 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+/**
+ * A styled tooltip content component for charts.
+ * It uses the chart's configuration to display labels, colors, and icons.
+ */
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
     React.ComponentProps<"div"> & {
+      /** Whether to hide the main label of the tooltip. */
       hideLabel?: boolean
+      /** Whether to hide the color indicator for each data series. */
       hideIndicator?: boolean
+      /** The style of the color indicator. */
       indicator?: "line" | "dot" | "dashed"
+      /** The key to use for the name of the data series. */
       nameKey?: string
+      /** The key to use for the label of the tooltip. */
       labelKey?: string
     }
 >(
@@ -256,13 +291,23 @@ const ChartTooltipContent = React.forwardRef<
 )
 ChartTooltipContent.displayName = "ChartTooltip"
 
+/**
+ * A primitive component for rendering the chart legend.
+ * It is a direct export from `recharts`.
+ */
 const ChartLegend = RechartsPrimitive.Legend
 
+/**
+ * A styled legend content component for charts.
+ * It displays a list of data series with their corresponding colors and icons.
+ */
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
     Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+      /** Whether to hide the color icon for each legend item. */
       hideIcon?: boolean
+      /** The key to use for the name of the data series in the legend. */
       nameKey?: string
     }
 >(

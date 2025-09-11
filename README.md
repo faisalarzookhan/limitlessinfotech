@@ -11,7 +11,7 @@ This application is built with Next.js (App Router), React, and Tailwind CSS, le
 -   **Legal Pages**: Privacy Policy, Terms of Service, Cookies Policy.
 -   **Admin Panel**: A secure area for internal management.
 -   **cPanel-like Interface**: A custom control panel for managing hosting features like domains, databases, email accounts, files, SSL, CDN, security, and server monitoring.
--   **API Endpoints**: Mock API routes for various functionalities, including authentication, contact forms, and cPanel operations.
+-   **API Endpoints**: A comprehensive set of mock API routes for various functionalities.
 
 ## Features
 
@@ -19,8 +19,16 @@ This application is built with Next.js (App Router), React, and Tailwind CSS, le
 -   **Theming**: Dark and light mode support.
 -   **Form Handling**: Contact forms with mock backend logic.
 -   **Dynamic Content**: Project and service detail pages.
--   **Interactive cPanel**: Simulate management of web hosting resources.
--   **Authentication**: Mock authentication routes for login, logout, password reset.
+-   **Interactive cPanel**: Simulate management of web hosting resources with detailed mock APIs for:
+    -   Analytics and server monitoring
+    -   Backup and file management
+    -   Domain, subdomain, and DNS management
+    -   Email account, auto-responder, and filter management
+    -   Database and user management
+    -   SSL certificate management
+    -   Security and firewall rule management
+-   **Authentication**: Mock authentication routes for login, logout, registration, and password reset.
+-   **Real-time Features**: Placeholder for WebSocket integration for chat and notifications.
 
 ## Getting Started
 
@@ -29,126 +37,105 @@ Follow these instructions to set up and run the project locally.
 ### Prerequisites
 
 -   Node.js (v18 or higher)
--   Yarn (recommended) or npm
+-   pnpm (recommended), or yarn/npm
 
 ### Installation
 
 1.  **Clone the repository:**
-    \`\`\`bash
+    ```bash
     git clone https://github.com/your-username/limitless-webapp.git
     cd limitless-webapp
-    \`\`\`
+    ```
 
 2.  **Install dependencies:**
-    \`\`\`bash
-    yarn install
-    # or npm install
-    \`\`\`
+    This project uses `pnpm` as the preferred package manager.
+    ```bash
+    pnpm install
+    ```
 
 3.  **Set up environment variables:**
-    Create a `.env.local` file in the root directory and add your environment variables. For this project, mock APIs are used, so no external API keys are strictly required for basic functionality, but you can add placeholders if needed.
+    Create a `.env.local` file in the root directory by copying the example file:
+    ```bash
+    cp .env.example .env.local
+    ```
+    Update the `.env.local` file with your environment variables. For this project, mock APIs are used, so no external API keys are strictly required for basic functionality. However, to use the database features, you will need to provide Supabase credentials.
 
-    \`\`\`env
-    # Example (if you were to integrate real services)
-    # NEXT_PUBLIC_API_BASE_URL=http://localhost:3000/api
-    # JWT_SECRET=your_jwt_secret_key
-    # RESEND_API_KEY=your_resend_api_key
-    \`\`\`
+    ```env
+    # Example for Supabase integration
+    NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+    # Example for JWT secret
+    JWT_SECRET=a-strong-secret-key-for-jwt
+
+    # Example for Resend (email service)
+    RESEND_API_KEY=your-resend_api_key
+    ```
 
 4.  **Run the development server:**
-    \`\`\`bash
-    yarn dev
-    # or npm run dev
-    \`\`\`
+    ```bash
+    pnpm dev
+    ```
 
     The application will be accessible at `http://localhost:3000`.
 
 ### Building for Production
 
-\`\`\`bash
-yarn build
-# or npm run build
-\`\`\`
+```bash
+pnpm build
+```
 
 ### Running in Production Mode
 
-\`\`\`bash
-yarn start
-# or npm start
-\`\`\`
+```bash
+pnpm start
+```
+
+## Testing
+
+This project uses Jest for unit and integration testing.
+
+-   **Run all tests:**
+    ```bash
+    pnpm test
+    ```
+-   **Run tests in watch mode:**
+    ```bash
+    pnpm test --watch
+    ```
+-   **Run tests for a specific file:**
+    ```bash
+    pnpm test <path_to_file>
+    ```
+
+The Jest configuration is located in `jest.config.js`, and the setup file `jest.setup.js` is used to polyfill necessary browser APIs for the Node.js test environment.
 
 ## Project Structure
 
-\`\`\`
+```
 .
 ├── app/
 │   ├── api/                  # Next.js API Routes (mock backend)
-│   │   ├── approvals/
-│   │   ├── auth/
-│   │   ├── cpanel/           # cPanel specific API routes
-│   │   ├── contact/
-│   │   ├── currency/
-│   │   ├── health/
-│   │   ├── projects/
-│   │   ├── receive-emails/
-│   │   ├── send-email/
-│   │   ├── tasks/
-│   │   ├── upload/
-│   │   └── users/
+│   │   ├── auth/             # Authentication endpoints
+│   │   ├── cpanel/           # cPanel-specific API routes
+│   │   ├── ...
 │   ├── cpanel/               # cPanel UI components and pages
-│   │   ├── components/
-│   │   └── page.tsx
 │   ├── components/           # Application-specific React components
-│   ├── docs/                 # Documentation pages
-│   ├── services/             # Service detail pages
-│   ├── about/
-│   ├── admin/
-│   ├── api-docs/
-│   ├── careers/
-│   ├── contact/
-│   ├── cookies/
-│   ├── demo/
-│   ├── employee/
-│   ├── layout.tsx            # Root layout
-│   ├── loading.tsx           # Loading states for routes
-│   ├── not-found.tsx         # Custom 404 page
-│   ├── page.tsx              # Home page
-│   ├── privacy/
-│   ├── projects/
-│   ├── robots.ts             # robots.txt generation
-│   ├── sitemap.ts            # sitemap.xml generation
-│   ├── team/
-│   ├── terms/
-│   └── webmail/
+│   ├── ...
 ├── components/               # Shared UI components (shadcn/ui overrides/extensions)
 │   ├── ui/                   # shadcn/ui components
-│   ├── contact-form.tsx
-│   ├── currency-provider.tsx
-│   ├── error-boundary.tsx
-│   ├── footer.tsx
-│   ├── header.tsx
-│   ├── theme-provider.tsx
-│   └── theme-toggle.tsx
-├── deployment/               # Deployment scripts and configurations
-├── hooks/                    # Custom React hooks
-├── lib/                      # Utility functions and libraries
-│   ├── auth.ts
-│   ├── auth.config.ts
-│   ├── currency.ts
-│   ├── database.ts
-│   ├── email.ts
-│   ├── rate-limit.ts
-│   ├── utils.ts
-│   └── validation.ts
-├── public/                   # Static assets (images, fonts, etc.)
-│   ├── images/
-│   └── ...
-├── scripts/                  # Utility scripts (e.g., database setup, testing)
-├── styles/                   # Global CSS
-├── tailwind.config.ts        # Tailwind CSS configuration
-├── tsconfig.json             # TypeScript configuration
-└── yarn.lock                 # Yarn lock file
-\`\`\`
+│   ├── ...
+├── hooks/                    # Custom React hooks (e.g., useIsMobile)
+├── lib/                      # Utility functions and core logic
+│   ├── auth.ts               # Authentication services (JWT, NextAuth)
+│   ├── database.ts           # Supabase client and database helpers
+│   ├── email.ts              # Email sending services
+│   ├── rate-limit.ts         # Rate limiting utilities
+│   ├── ...
+├── public/                   # Static assets
+├── scripts/                  # Utility scripts
+└── ...
+```
 
 ## Technologies Used
 
@@ -157,7 +144,8 @@ yarn start
 -   **TypeScript**: Strongly typed JavaScript.
 -   **Tailwind CSS**: A utility-first CSS framework.
 -   **shadcn/ui**: Reusable UI components built with Radix UI and Tailwind CSS.
--   **Lucide React**: Beautifully crafted open-source icons.
+-   **Jest & React Testing Library**: For unit and integration testing.
+-   **pnpm**: Fast, disk space-efficient package manager.
 
 ## Contributing
 

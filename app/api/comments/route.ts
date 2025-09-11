@@ -10,6 +10,11 @@ const commentSchema = z.object({
   rating: z.number().min(1).max(5).optional(),
 });
 
+/**
+ * Handles GET requests to fetch comments for a specific project.
+ * @param request - The incoming request object.
+ * @returns A JSON response with the comments or an error.
+ */
 export async function GET(request: Request) {
   const session = await auth();
 
@@ -37,6 +42,11 @@ export async function GET(request: Request) {
   return NextResponse.json(comments);
 }
 
+/**
+ * Handles POST requests to add a new comment to a project.
+ * @param request - The incoming request object.
+ * @returns A JSON response with the new comment or an error.
+ */
 export async function POST(request: Request) {
   const session = await auth();
 

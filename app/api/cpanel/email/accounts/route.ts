@@ -42,6 +42,11 @@ const mockEmailAccounts = [
   },
 ]
 
+/**
+ * Handles GET requests to fetch mock email accounts.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the email accounts.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -78,6 +83,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to manage email accounts.
+ * It supports creating, deleting, changing passwords, updating storage, and toggling status.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating the result of the action.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

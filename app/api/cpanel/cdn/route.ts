@@ -98,6 +98,12 @@ const mockEdgeLocations: EdgeLocation[] = [
   { id: "loc_5", city: "Mumbai", country: "India", region: "Asia", status: "maintenance", latency: 35, requests: 0 },
 ]
 
+/**
+ * Handles GET requests to fetch mock CDN data.
+ * It can return CDN settings, stats, or edge locations based on the `type` query parameter.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the requested CDN data.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -144,6 +150,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to manage CDN settings.
+ * It supports adding, updating, and deleting CDN domains, and purging the cache.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating the result of the action.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

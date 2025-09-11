@@ -5,6 +5,7 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+/** The root component for a drawer, based on `vaul`. */
 const Drawer = ({
   shouldScaleBackground = true,
   ...props
@@ -16,12 +17,16 @@ const Drawer = ({
 )
 Drawer.displayName = "Drawer"
 
+/** The trigger that opens the drawer. */
 const DrawerTrigger = DrawerPrimitive.Trigger
 
+/** A portal that renders the drawer into a new stacking context. */
 const DrawerPortal = DrawerPrimitive.Portal
 
+/** A button to close the drawer. */
 const DrawerClose = DrawerPrimitive.Close
 
+/** A semi-transparent overlay that covers the main content when the drawer is open. */
 const DrawerOverlay = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Overlay>
@@ -34,6 +39,7 @@ const DrawerOverlay = React.forwardRef<
 ))
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
+/** The main content container for the drawer. */
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
@@ -55,6 +61,7 @@ const DrawerContent = React.forwardRef<
 ))
 DrawerContent.displayName = "DrawerContent"
 
+/** The header section of a drawer. */
 const DrawerHeader = ({
   className,
   ...props
@@ -66,6 +73,7 @@ const DrawerHeader = ({
 )
 DrawerHeader.displayName = "DrawerHeader"
 
+/** The footer section of a drawer. */
 const DrawerFooter = ({
   className,
   ...props
@@ -77,6 +85,7 @@ const DrawerFooter = ({
 )
 DrawerFooter.displayName = "DrawerFooter"
 
+/** The title of a drawer, to be used within a `DrawerHeader`. */
 const DrawerTitle = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Title>
@@ -92,6 +101,7 @@ const DrawerTitle = React.forwardRef<
 ))
 DrawerTitle.displayName = DrawerPrimitive.Title.displayName
 
+/** The description for a drawer, to be used within a `DrawerHeader`. */
 const DrawerDescription = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Description>

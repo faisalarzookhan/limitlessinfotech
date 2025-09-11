@@ -12,9 +12,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? "change-me")
 
+/**
+ * Represents the payload of a JSON Web Token (JWT).
+ */
 export interface JwtPayload {
-  sub: string // user id
+  /** The subject of the token, typically the user ID. */
+  sub: string
+  /** The role of the user. */
   role: "admin" | "employee" | "client"
+  /** The email address of the user. */
   email: string
 }
 
@@ -24,8 +30,18 @@ const payloadSchema: z.ZodSchema<JwtPayload> = z.object({
   email: z.string().email(),
 })
 
+/**
+ * Provides services for handling JWT-based authentication.
+ * This class is a legacy helper for modules that expect an AuthService.
+ */
 export class AuthService {
-  /** Issue a signed JWT valid for `expiresIn` seconds (default 7 days). */
+  /**
+   * Signs a payload to create a JWT.
+   * The token is valid for a specified duration.
+   * @param payload - The payload to sign.
+   * @param expiresIn - The token's validity duration in seconds. Defaults to 7 days.
+   * @returns A promise that resolves to the signed JWT string.
+   */
   static async sign(payload: JwtPayload, expiresIn = 60 * 60 * 24 * 7): Promise<string> {
     const iat = Math.floor(Date.now() / 1000)
     const exp = iat + expiresIn
@@ -38,7 +54,11 @@ export class AuthService {
       .sign(JWT_SECRET)
   }
 
-  /** Verify token & return payload or `null` if invalid/expired. */
+  /**
+   * Verifies a JWT and returns its payload if valid.
+   * @param token - The JWT string to verify.
+   * @returns A promise that resolves to the JWT payload if the token is valid, otherwise null.
+   */
   static async verifyToken(token?: string | null): Promise<JwtPayload | null> {
     if (!token) return null
     try {
@@ -49,7 +69,13 @@ export class AuthService {
     }
   }
 
-  /** Demo login helper – replace with real DB lookup. */
+  /**
+   * A demonstration login helper.
+   * In a real application, this would involve a database lookup.
+   * @param email - The user's email.
+   * @param password - The user's password.
+   * @returns A promise that resolves to an object containing the user payload and JWT, or null if login fails.
+   */
   static async login(email: string, password: string) {
     if (email !== "admin@example.com" || password !== "secret") return null
     const user: JwtPayload = { sub: "1", role: "admin", email }

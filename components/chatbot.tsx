@@ -6,6 +6,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Paperclip, Send, Bot, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
+/**
+ * A floating chatbot component that allows users to interact with a conversational AI.
+ * It features a toggle button to open and close the chat window, a message display area,
+ * and a text input for sending messages. The component communicates with a backend API
+ * at `/api/chatbot` to get responses.
+ *
+ * This component manages its own state, including visibility, messages, and loading status.
+ * It does not take any props.
+ */
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<{ from: string; text: string }[]>([

@@ -39,6 +39,11 @@ const mockEmailFilters: EmailFilter[] = [
   },
 ]
 
+/**
+ * Handles GET requests to fetch mock email filters.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the email filters.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -64,6 +69,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to manage email filters.
+ * It supports creating, updating the status of, and deleting filters.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating the result of the action.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
