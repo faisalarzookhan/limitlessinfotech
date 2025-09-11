@@ -51,19 +51,20 @@ const config: Config = {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
-        // Custom colors for Limitless Infotech
-        "dark-blue-900": "#0F172A", // Slate-900 equivalent
-        "dark-blue-800": "#1E293B", // Slate-800 equivalent
-        "dark-blue-700": "#334155", // Slate-700 equivalent
-        "accent-blue": "#3B82F6", // Blue-500
-        "accent-green": "#10B981", // Green-500
-        "accent-orange": "#F59E0B", // Orange-500
-        "accent-purple": "#8B5CF6", // Purple-500
-        "accent-cyan": "#06B6D4", // Cyan-500
+        // Custom colors from design spec
+        primary: {
+          DEFAULT: "#3B82F6", // Blue
+          dark: "#1F2937", // Dark Gray
+        },
+        accent: {
+          green: "#22C55E",
+          cyan: "#60A5FA",
+          orange: "#F59E0B",
+        },
       },
       fontFamily: {
-        poppins: ["var(--font-poppins)", "sans-serif"],
         sans: ["var(--font-inter)", "sans-serif"],
+        poppins: ["var(--font-poppins)", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

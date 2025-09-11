@@ -45,7 +45,18 @@ export async function POST(request: NextRequest) {
     // Simulate sending an email
     await sendContactFormEmail({ name, email, subject, message })
 
-    return NextResponse.json({ success: true, message: "Your message has been sent successfully!" }, { status: 200 })
+    // Advanced Mock lead scoring
+    let score = 30
+    if (message.length > 50) score += 10
+    if (message.toLowerCase().includes("budget")) score += 20
+    if (message.toLowerCase().includes("urgent")) score += 20
+    if (subject.toLowerCase().includes("project")) score += 20
+    score = Math.min(score, 100) // Cap score at 100
+
+    return NextResponse.json(
+      { success: true, message: "Your message has been sent successfully!", score },
+      { status: 200 },
+    )
   } catch (error) {
     console.error("Contact form submission error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

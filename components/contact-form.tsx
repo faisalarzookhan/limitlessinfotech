@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, CheckCircle2 } from "lucide-react"
 
 export function ContactForm() {
   const [formData, setFormData] = useState({
@@ -17,6 +17,7 @@ export function ContactForm() {
     message: "",
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [leadScore, setLeadScore] = useState<number | null>(null)
   const { toast } = useToast()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -27,6 +28,7 @@ export function ContactForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setLeadScore(null)
 
     try {
       const response = await fetch("/api/contact", {
@@ -46,6 +48,7 @@ export function ContactForm() {
           variant: "default",
         })
         setFormData({ name: "", email: "", subject: "", message: "" }) // Clear form
+        setLeadScore(data.score)
       } else {
         throw new Error(data.error || "Failed to send message.")
       }
@@ -118,7 +121,7 @@ export function ContactForm() {
           className="input-field"
         />
       </div>
-      <Button type="submit" className="btn-gradient w-full" disabled={isLoading}>
+      <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...
@@ -127,6 +130,16 @@ export function ContactForm() {
           "Send Message"
         )}
       </Button>
+      {leadScore !== null && (
+        <div
+          className={`mt-4 flex items-center gap-2 text-sm font-semibold ${
+            leadScore >= 70 ? "text-green-600" : "text-orange-500"
+          }`}
+        >
+          <CheckCircle2 className="h-5 w-5" />
+          <span>Lead Score: {leadScore} - Thank you for your submission!</span>
+        </div>
+      )}
     </form>
   )
 }
