@@ -7,14 +7,19 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/** The root component for a sheet, which is a panel that slides in from the side of the screen. */
 const Sheet = SheetPrimitive.Root
 
+/** The trigger that opens the sheet. */
 const SheetTrigger = SheetPrimitive.Trigger
 
+/** A button to close the sheet. */
 const SheetClose = SheetPrimitive.Close
 
+/** A portal that renders the sheet into a new stacking context. */
 const SheetPortal = SheetPrimitive.Portal
 
+/** A semi-transparent overlay that covers the main content when the sheet is open. */
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
@@ -53,6 +58,7 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {}
 
+/** The main content container for the sheet. */
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
   ({ side = "right", className, children, ...props }, ref) => (
     <SheetPortal>
@@ -69,16 +75,19 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
 )
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
+/** The header section of a sheet. */
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
 )
 SheetHeader.displayName = "SheetHeader"
 
+/** The footer section of a sheet. */
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
 )
 SheetFooter.displayName = "SheetFooter"
 
+/** The title of a sheet, to be used within a `SheetHeader`. */
 const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
@@ -87,6 +96,7 @@ const SheetTitle = React.forwardRef<
 ))
 SheetTitle.displayName = SheetPrimitive.Title.displayName
 
+/** The description for a sheet, to be used within a `SheetHeader`. */
 const SheetDescription = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>

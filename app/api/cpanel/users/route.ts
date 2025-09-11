@@ -51,6 +51,11 @@ const mockCPanelUsers: CPanelUser[] = [
   },
 ]
 
+/**
+ * Handles GET requests to fetch mock cPanel users.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the cPanel users.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -89,6 +94,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to manage cPanel users.
+ * It supports creating, updating, and deleting users.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating the result of the action.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

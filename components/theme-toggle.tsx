@@ -5,6 +5,12 @@ import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
+/**
+ * A component that provides a dropdown menu to toggle between light, dark, and system themes.
+ * It uses the `useTheme` hook from `next-themes` to manage the theme state.
+ * The button displays a sun or moon icon corresponding to the current theme.
+ * This component does not accept any props.
+ */
 export function ThemeToggle() {
   const { setTheme } = useTheme()
 

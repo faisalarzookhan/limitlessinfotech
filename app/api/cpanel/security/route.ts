@@ -89,6 +89,12 @@ const mockFirewallRules: FirewallRule[] = [
   },
 ]
 
+/**
+ * Handles GET requests to fetch mock security data.
+ * It can return general security settings or firewall rules based on the `type` query parameter.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the requested security data.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -125,6 +131,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to manage security settings and firewall rules.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating the result of the action.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

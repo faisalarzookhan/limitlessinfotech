@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
+/**
+ * Handles POST requests for user logout.
+ * It clears the authentication cookie, effectively logging the user out.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating success or failure.
+ */
 export async function POST(request: NextRequest) {
   try {
     const response = NextResponse.json({ success: true, message: "Logout successful" })

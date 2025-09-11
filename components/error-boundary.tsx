@@ -5,17 +5,32 @@ import { AlertTriangle } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
+/**
+ * Defines the props for the ErrorBoundary component.
+ */
 interface ErrorBoundaryProps {
+  /** The child components that the error boundary will wrap. */
   children: ReactNode
+  /** An optional custom fallback component to render on error. */
   fallback?: ReactNode
 }
 
+/**
+ * Defines the state for the ErrorBoundary component.
+ */
 interface ErrorBoundaryState {
+  /** A boolean that becomes true when a child component throws an error. */
   hasError: boolean
+  /** The error that was caught. */
   error: Error | null
+  /** An object containing information about which component threw the error. */
   errorInfo: ErrorInfo | null
 }
 
+/**
+ * A React component that catches JavaScript errors anywhere in its child component tree,
+ * logs those errors, and displays a fallback UI instead of the component tree that crashed.
+ */
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)

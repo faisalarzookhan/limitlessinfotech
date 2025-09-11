@@ -2,6 +2,12 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { validatePassword } from "@/lib/validation" // Assuming this utility exists
 
+/**
+ * Handles POST requests for resetting a user's password.
+ * It takes a reset token, email, and new password, and simulates the password update process.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating success or failure.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { token, email, newPassword } = await request.json()

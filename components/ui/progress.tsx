@@ -6,9 +6,14 @@ import * as ProgressPrimitive from "@radix-ui/react-progress"
 import { cn } from "@/lib/utils"
 
 interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
+  /** An optional class name for the progress indicator element. */
   indicatorClassName?: string
 }
 
+/**
+ * A component to display a progress bar.
+ * It is a styled wrapper around the Radix UI Progress component.
+ */
 const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root>, ProgressProps>(
   ({ className, value, indicatorClassName, ...props }, ref) => (
     <ProgressPrimitive.Root

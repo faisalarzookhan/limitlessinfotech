@@ -60,6 +60,12 @@ const mockUsers = [
   },
 ]
 
+/**
+ * Handles GET requests to fetch mock database or user data.
+ * The type of data returned is determined by the `type` query parameter.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the requested data.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -98,6 +104,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to create a new database or database user.
+ * The action is determined by the `action` parameter in the request body.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the newly created resource or an error.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -192,6 +204,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Handles DELETE requests to remove a database or database user.
+ * The type of resource to delete is determined by the `type` query parameter.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating success or failure.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

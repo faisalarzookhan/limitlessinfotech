@@ -28,6 +28,10 @@ const toggleVariants = cva(
   }
 )
 
+/**
+ * A two-state toggle button.
+ * It is a styled wrapper around the Radix UI Toggle component.
+ */
 const Toggle = React.forwardRef<
   React.ElementRef<typeof TogglePrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof TogglePrimitive.Root> &

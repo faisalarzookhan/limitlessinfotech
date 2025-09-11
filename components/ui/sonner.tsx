@@ -5,6 +5,11 @@ import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
+/**
+ * A toaster component that displays toast notifications.
+ * It is a styled wrapper around the `sonner` library.
+ * It automatically adapts to the current theme (light/dark).
+ */
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
 

@@ -11,6 +11,10 @@ import type {
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
 
+/**
+ * Represents the properties of a toast notification in the toaster.
+ * Extends the base `ToastProps` with additional properties for state management.
+ */
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
@@ -74,6 +78,13 @@ const addToRemoveQueue = (toastId: string) => {
   toastTimeouts.set(toastId, timeout)
 }
 
+/**
+ * The reducer function for managing toast state.
+ * It handles adding, updating, dismissing, and removing toasts.
+ * @param state - The current state.
+ * @param action - The dispatched action.
+ * @returns The new state.
+ */
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
@@ -142,6 +153,11 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
+/**
+ * A function to create and display a new toast.
+ * @param props - The properties for the toast, including `title`, `description`, etc.
+ * @returns An object with `id`, `dismiss`, and `update` methods for controlling the toast.
+ */
 function toast({ ...props }: Toast) {
   const id = genId()
 
@@ -171,6 +187,11 @@ function toast({ ...props }: Toast) {
   }
 }
 
+/**
+ * A custom React hook for interacting with the toast system.
+ * It provides the current list of toasts and functions to create and dismiss them.
+ * @returns An object containing the current toasts, the `toast` function, and the `dismiss` function.
+ */
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 

@@ -33,9 +33,18 @@ const buttonVariants = cva(
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
+  /**
+   * If `true`, the button will be rendered as a child component (e.g., a `Link`),
+   * inheriting its props. This is useful for creating clickable links that look like buttons.
+   */
   asChild?: boolean
 }
 
+/**
+ * A versatile button component with multiple visual styles and sizes.
+ * It is built on top of `class-variance-authority` for easy variant management.
+ * Can be rendered as a different component (like a link) using the `asChild` prop.
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"

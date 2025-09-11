@@ -3,6 +3,12 @@ import type { NextRequest } from "next/server"
 import { sendPasswordResetEmail } from "@/lib/email" // Assuming this utility exists
 import { validateEmail } from "@/lib/validation" // Assuming this utility exists
 
+/**
+ * Handles POST requests for the forgot password functionality.
+ * It takes an email, simulates generating a reset token, and sends a password reset email.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating success or failure.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()

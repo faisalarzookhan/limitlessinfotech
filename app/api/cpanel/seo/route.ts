@@ -91,6 +91,12 @@ const mockSiteAuditIssues: SiteAuditIssue[] = [
   },
 ]
 
+/**
+ * Handles GET requests to fetch mock SEO data.
+ * It can return keyword rankings, site audit issues, or an overview based on the `type` query parameter.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the requested SEO data.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
@@ -139,6 +145,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Handles POST requests to manage SEO tasks.
+ * It supports adding/deleting keywords, running site audits, and updating audit issue statuses.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response indicating the result of the action.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

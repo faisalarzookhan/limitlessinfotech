@@ -9,6 +9,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, CheckCircle2 } from "lucide-react"
 
+/**
+ * A form component for users to send contact messages.
+ * It includes fields for name, email, subject, and message.
+ * The form handles its own state and submits the data to the `/api/contact` endpoint.
+ * It displays loading states and provides user feedback via toast notifications.
+ * After a successful submission, it also displays a "lead score".
+ * This component does not accept any props.
+ */
 export function ContactForm() {
   const [formData, setFormData] = useState({
     name: "",

@@ -68,6 +68,12 @@ const mockAnalytics = {
   ],
 }
 
+/**
+ * Handles GET requests to fetch mock analytics data.
+ * It returns different types of analytics data based on the `type` query parameter.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the requested analytics data.
+ */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")

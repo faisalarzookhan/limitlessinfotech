@@ -24,6 +24,12 @@ const footerLinks = {
   ],
 }
 
+/**
+ * The main footer component for the application.
+ * It displays navigation links categorized into sections, the company logo,
+ * and a copyright notice. The links are defined in the `footerLinks` object.
+ * This component does not accept any props.
+ */
 export default function Footer() {
   return (
     <footer className="bg-background border-t">

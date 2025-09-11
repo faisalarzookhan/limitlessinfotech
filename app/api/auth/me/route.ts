@@ -2,6 +2,12 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { AuthService } from "@/lib/auth"
 
+/**
+ * Handles GET requests to fetch the current user's authentication status and data.
+ * It checks for an authentication token in the cookies, verifies it, and returns the user's data.
+ * @param request - The incoming NextRequest object.
+ * @returns A JSON response with the user data and authentication status, or an error.
+ */
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get("auth_token")?.value

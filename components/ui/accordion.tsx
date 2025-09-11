@@ -6,8 +6,16 @@ import { ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * The root component for an accordion, which contains a set of collapsible items.
+ * It is based on the Radix UI Accordion Root component.
+ */
 const Accordion = AccordionPrimitive.Root
 
+/**
+ * An individual item within the accordion. It contains a trigger and content.
+ * It is based on the Radix UI Accordion Item component.
+ */
 const AccordionItem = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
@@ -20,6 +28,11 @@ const AccordionItem = React.forwardRef<
 ))
 AccordionItem.displayName = "AccordionItem"
 
+/**
+ * The button that toggles the open/closed state of an `AccordionItem`.
+ * It should be placed inside an `AccordionItem`.
+ * It is based on the Radix UI Accordion Trigger component.
+ */
 const AccordionTrigger = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
@@ -40,6 +53,10 @@ const AccordionTrigger = React.forwardRef<
 ))
 AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName
 
+/**
+ * The content panel that is revealed when an `AccordionItem` is opened.
+ * It is based on the Radix UI Accordion Content component.
+ */
 const AccordionContent = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>

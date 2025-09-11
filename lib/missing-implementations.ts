@@ -1,20 +1,40 @@
 // This file documents all the missing implementations that need to be completed
 
+/**
+ * Defines the structure for documenting a missing or incomplete feature.
+ * This is used for project planning and tracking technical debt.
+ */
 export interface MissingImplementation {
+  /** A unique identifier for the task (e.g., "DB_001"). */
   id: string
+  /** A concise title for the implementation task. */
   title: string
+  /** A detailed description of the feature or task. */
   description: string
+  /** The priority level for the task. */
   priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+  /** The category the task belongs to. */
   category: "Database" | "Authentication" | "Security" | "Performance" | "Features" | "Testing"
+  /** The estimated number of hours to complete the task. */
   estimatedHours: number
+  /** A list of other tasks or conditions that must be met first. */
   dependencies: string[]
+  /** The risk level associated with not completing this task. */
   riskLevel: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+  /** A description of the impact of the missing implementation. */
   impact: string
+  /** A description of the current state of the feature. */
   currentState: string
+  /** A description of the desired state after implementation. */
   expectedState: string
+  /** A list of steps required to complete the implementation. */
   implementationSteps: string[]
 }
 
+/**
+ * A comprehensive list of all documented missing implementations and technical debt.
+ * This serves as a roadmap for future development.
+ */
 export const MISSING_IMPLEMENTATIONS: MissingImplementation[] = [
   {
     id: "DB_001",
@@ -257,22 +277,45 @@ export const MISSING_IMPLEMENTATIONS: MissingImplementation[] = [
   },
 ]
 
+/**
+ * Filters the list of missing implementations by a specific priority level.
+ * @param priority - The priority level to filter by.
+ * @returns An array of implementation tasks matching the priority.
+ */
 export function getMissingImplementationsByPriority(priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW") {
   return MISSING_IMPLEMENTATIONS.filter((impl) => impl.priority === priority)
 }
 
+/**
+ * Filters the list of missing implementations by a specific category.
+ * @param category - The category name to filter by (e.g., "Database", "Security").
+ * @returns An array of implementation tasks matching the category.
+ */
 export function getMissingImplementationsByCategory(category: string) {
   return MISSING_IMPLEMENTATIONS.filter((impl) => impl.category === category)
 }
 
+/**
+ * Calculates the total estimated hours for all missing implementations.
+ * @returns The sum of estimated hours for all tasks.
+ */
 export function getTotalEstimatedHours() {
   return MISSING_IMPLEMENTATIONS.reduce((total, impl) => total + impl.estimatedHours, 0)
 }
 
+/**
+ * Retrieves all implementations that are marked with a "CRITICAL" risk level.
+ * @returns An array of implementation tasks with critical risk.
+ */
 export function getCriticalImplementations() {
   return MISSING_IMPLEMENTATIONS.filter((impl) => impl.riskLevel === "CRITICAL")
 }
 
+/**
+ * Generates a phased implementation timeline based on task priority.
+ * This is useful for creating a high-level project roadmap.
+ * @returns An object representing a 4-phase timeline with tasks and total hours for each phase.
+ */
 export function generateImplementationTimeline() {
   const criticalItems = getMissingImplementationsByPriority("CRITICAL")
   const highItems = getMissingImplementationsByPriority("HIGH")
