@@ -192,6 +192,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Backup not found" }, { status: 404 })
     }
 
+    const backupToDelete = mockBackups[backupIndex];
+    if (backupToDelete.status === "in_progress") {
+      return NextResponse.json({ error: "Cannot delete a backup that is currently in progress." }, { status: 400 })
+    }
+
     mockBackups.splice(backupIndex, 1)
 
     return NextResponse.json({
